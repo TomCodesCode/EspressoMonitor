@@ -1,0 +1,27 @@
+# Ignore compiled output
+*.o
+*.exe
+*.dll
+build/
+dist/
+target/
+
+# Ignore log files
+*.log
+logs/
+
+# Ignore temporary files
+*.tmp
+temp/
+
+# Ignore editor and IDE specific files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Ignore node modules
+node_modules/
+
+# Ignore environment variables
+.env
