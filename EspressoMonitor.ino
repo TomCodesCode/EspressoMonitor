@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
+#include <Preferences.h>
 #include "DisplayManager.h"
 #include "SoundManager.h"
 #include "SensorManager.h"
@@ -16,6 +17,9 @@
 // (use ~120. at the moment- the values change for testing)
 #define BREW_TEMP 25    // default desired brewing start temp (of the boiler- the grouphead will always be much cooler)
 
+// SYSTEM
+Preferences sysPrefs;
+
 // --- OBJECTS ---
 DisplayManager display;
 SensorManager sensor;
@@ -30,6 +34,10 @@ unsigned long readyTime = 0;
 
 void setup() {
     Serial.begin(115200);
+    delay(1000);
+
+    Serial.println();
+    sysBoots(); // Number of boots
 
     display.init();
     display.showStartupScreen();
@@ -122,4 +130,13 @@ void loop() {
             break;
     }
     delay(50); // Small delay to prevent screen flickering/CPU hogging
+}
+
+void sysBoots(){
+    sysPrefs.begin("system", false);
+    unsigned int boots = sysPrefs.getUInt("boots", 0) + 1;
+    sysPrefs.putUInt("boots", boots);
+    sysPrefs.end();
+    Serial.print("Total Machine Boots: ");
+    Serial.println(boots);
 }

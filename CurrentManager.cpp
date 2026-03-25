@@ -1,7 +1,9 @@
 #include "CurrentManager.h"
+#include <Preferences.h>
 
 // real threshold is calculated dynamically
 float dynamicThreshold = 0.0;
+Preferences preferences; // Non-volatile-storage
 
 CurrentManager::CurrentManager(int pinNumber) {
     pin = pinNumber;
@@ -12,7 +14,66 @@ CurrentManager::CurrentManager(int pinNumber) {
 
 void CurrentManager::init() {
     pinMode(pin, INPUT);
-    calibrate();
+
+    Serial.println("Waiting for SCT circuit to stabilize...");
+    
+    int lastReading = analogRead(pin);
+    int stableCount = 0;
+    unsigned long startWait = millis();
+    bool isStable = false;
+    
+    // Wait until the voltage stops climbing, with a 3-second safety timeout
+    while (millis() - startWait < 3000) {
+        delay(10); // Wait 10ms between samples
+        int currentReading = analogRead(pin);
+        
+        // If the reading moved less than 5 ADC units, consider it "flat"
+        if (abs(currentReading - lastReading) < 20) {
+            stableCount++;
+        } else {
+            stableCount = 0; // It's still moving, reset the counter
+        }
+        
+        // If it stays flat for 15 checks in a row (150ms), we are golden
+        if (stableCount >= 15) {
+            isStable = true;
+            Serial.print("Circuit stable. Took (ms): ");
+            Serial.println(millis() - startWait);
+            break; 
+        }
+        
+        lastReading = currentReading;
+    }
+
+    // Stable 
+    if (isStable) {
+        // Hardware is solid. Run live calibration.
+        calibrate(); 
+        
+        // Save the fresh results to permanent memory
+        // "espresso" is the folder name, false means read/write mode
+        preferences.begin("espresso", false); 
+        preferences.putInt("zero", zeroPoint);
+        preferences.putFloat("thresh", dynamicThreshold);
+        preferences.end();
+        Serial.println("Calibration saved to memory.");
+        
+    } else {
+        // Hardware is noisy or broken. Skip calibration and load history.
+        Serial.println("WARNING: Circuit unstable! Loading historical calibration...");
+        
+        // true means read-only mode (safer)
+        preferences.begin("espresso", true); 
+        
+        // The second number (1950 / 16.0) is the fallback if memory is totally empty
+        zeroPoint = preferences.getInt("zero", 1950); 
+        dynamicThreshold = preferences.getFloat("thresh", 16.0); 
+        preferences.end();
+
+        Serial.print("Loaded Zero Point: "); Serial.println(zeroPoint);
+        Serial.print("Loaded Threshold: "); Serial.println(dynamicThreshold);
+        Serial.println("-------------------------------");
+    }
 }
 
 void CurrentManager::calibrate() {

@@ -1,12 +1,12 @@
 #ifndef DISPLAY_MANAGER_H
 #define DISPLAY_MANAGER_H
 
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <TFT_eSPI.h>
 
 class DisplayManager {
 private:
-    Adafruit_SSD1306 display; // Pointer to the driver object
+    TFT_eSPI tft; // Pointer to the driver object
+    TFT_eSprite sprite;
 
 public:
     DisplayManager();

@@ -1,83 +1,75 @@
 #include "DisplayManager.h"
 #include <Arduino.h>
-#include <Wire.h> // Needed for I2C
+// #include <Wire.h> // Needed for I2C
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
-DisplayManager::DisplayManager() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1) {}
+DisplayManager::DisplayManager() : tft(TFT_eSPI()), sprite(&tft) {}
 
 void DisplayManager::init() {
-    if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
-        Serial.println(F("Display Alloc Failed"));
-        for(;;); // Error. Cannot proceed! Re-plug the device or troubleshoot.
+    // TFT SPI display initialization
+    tft.init();
+    tft.setRotation(1);
+    tft.fillScreen(TFT_BLACK);
+
+    // Full screen canvas RAM allocation
+    //sprite.setColorDepth(8);
+    void *ptr = sprite.createSprite(320,240);
+    
+    if (ptr == nullptr) {
+        Serial.println("CRITICAL ERROR: Not enough RAM for Sprite!");
+    } else {
+        Serial.println("Sprite RAM allocated successfully.");
     }
-    display.clearDisplay();
 }
 
 void DisplayManager::showStartupScreen() {
-    display.clearDisplay();
-    display.setTextSize(2);
-    display.setTextColor(WHITE);
-    display.setCursor(0,0);
-    display.println("VBM");
-    display.println("Domobar");
-    display.display();
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawCentreString("VBM", 160, 80, 4);
+    tft.drawCentreString("Domobar", 160, 120, 4);
 
     delay(2000);
-    display.clearDisplay();
+    tft.fillScreen(TFT_BLACK);
 }
 
 void DisplayManager::showStatus(const char* label, const char* value) {
-    display.clearDisplay();
+    sprite.fillSprite(TFT_BLACK);
+    sprite.setTextColor(TFT_WHITE, TFT_BLACK);
     
-    display.setTextColor(SSD1306_WHITE);
+    sprite.drawCentreString(label, 160, 40, 4); // Top Label
     
-    // Smaller text at the top
-    display.setTextSize(2);
-    display.setCursor(0, 0);
-    display.println(label);
+    // Draw a dividing line
+    sprite.drawLine(20, 90, 300, 90, TFT_WHITE);
+    
+    // Main Value
+    sprite.drawCentreString(value, 160, 130, 6);
 
-    display.drawLine(0, 20, 128, 20, SSD1306_WHITE);
-    
-    // Larger text in the center
-    display.setTextSize(3);
-    display.setCursor(0, 35); // center the cursor. 
-    display.println(value);
-    
-    // Push the buffer to the physical hardware
-    display.display();
+    sprite.pushSprite(0,0);
 }
 
 void DisplayManager::showStatus(const char* label, float value, const char* unit) {
-    display.clearDisplay();
+    sprite.fillSprite(TFT_BLACK);
+    sprite.setTextColor(TFT_WHITE, TFT_BLACK);
     
-    // Label
-    display.setTextSize(2);
-    display.setCursor(0, 0);
-    display.print(label);
+    sprite.drawCentreString(label, 160, 40, 4);
+    sprite.drawLine(20, 90, 300, 90, TFT_WHITE);
+    
+    // Combine the float and the unit into one string so we can center it easily
+    char buffer[20];
+    sprintf(buffer, "%.1f %s", value, unit);
+    sprite.drawCentreString(buffer, 160, 130, 6);
 
-    display.drawLine(0, 20, 128, 20, SSD1306_WHITE);
-    
-    // Large Value
-    display.setTextSize(3);
-    display.setCursor(0, 35);
-    display.print(value, 1); // 1 decimal place
-    display.print(unit);
-    
-    display.display();
+    sprite.pushSprite(0,0);
 }
 
 void DisplayManager::showDoneSpam() {
-    display.clearDisplay();
-    display.setTextSize(4);
-    display.setTextColor(WHITE);
-    display.setCursor(0,0);
-    display.println("DONE");
-    display.display();
+    tft.fillScreen(TFT_GREEN);
+    tft.setTextColor(TFT_BLACK, TFT_GREEN);
+    tft.drawCentreString("DONE", 160, 100, 6);
 }
 
 void DisplayManager::showDown() {
-    display.clearDisplay();
-    display.display();
+    tft.fillScreen(TFT_BLACK);
 }
