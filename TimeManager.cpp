@@ -45,11 +45,12 @@ char* TimerManager::getFormattedTime() {
     float rawTime = getSeconds();
     // int minutes = (int)rawTime / 60;
     int seconds = (int)rawTime % 60;
-    int milliseconds = (int)((rawTime - (int)rawTime) * 100);
+    int tenths = (int)((rawTime - seconds) * 10);
+    //int milliseconds = (int)((rawTime - (int)rawTime) * 100);
 
     // Format as "MM:SS:mm" (e.g., "00:05:78")
     // sprintf(buffer, "%02d:%02d:%02d", minutes, seconds, milliseconds);
-    sprintf(buffer, "%02d.%02d", seconds, milliseconds);
+    sprintf(buffer, "%02d.%d", seconds, tenths);
     
     return buffer;
 }

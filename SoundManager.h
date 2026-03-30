@@ -38,6 +38,8 @@ public:
     
     void playDoom();
     void playStop();
+
+    bool isBusy() { return isPlaying; }
 };
 
 #endif

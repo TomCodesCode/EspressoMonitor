@@ -51,6 +51,8 @@ void loop() {
     // UPDATE INPUTS
     sensor.update();
     Serial.println(pumpSensor.readStrength());
+
+    sound.update();
     
     // Check pump status
     bool isPumpRunning = pumpSensor.isPumpOn();
@@ -114,22 +116,27 @@ void loop() {
         case DONE:
             display.showStatus("Done", timer.getFormattedTime());
             if (isPumpRunning) {
+                timer.reset();
+                timer.start();
                 currentState = BREWING;
-                Serial.println("BREWING again");
+                Serial.println("BREWING (again)");
                 break;
-            }
-            if (millis() - stateChangeTime > 10000){
-                if (sensor.getTemp() >= BREW_TEMP) {
-                    currentState = READY;
-                    Serial.println("READY (again)- still warm enough");
-                } else {
-                    currentState = WARMUP;
-                    Serial.println("WARMUP (again)");
+            } else {
+                if (millis() - stateChangeTime > 10000){
+                    if (sensor.getTemp() >= BREW_TEMP) {
+                        currentState = READY;
+                        Serial.println("READY (again)- still warm enough");
+                    } else {
+                        currentState = WARMUP;
+                        Serial.println("WARMUP (again)");
+                    }
                 }
             }
             break;
     }
-    delay(50); // Small delay to prevent screen flickering/CPU hogging
+    display.update();
+
+    delay(10); // FreeRTOS watchdog timer anti starvation
 }
 
 void sysBoots(){

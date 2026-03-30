@@ -10,8 +10,9 @@
 #define MAX_DO   19
 #define MAX_CLK  18
 
-// The value of the reference resistor on the board
-#define RREF      430.0
+// The value of the reference resistor on the board in ohms.
+// Should be 430 (+- 1%) from factory. Measured 423.
+#define RREF      423.0
 // The 'nominal' resistance of the sensor at 0C (100 for PT100)
 #define RNOMINAL  100.0
 
@@ -20,6 +21,8 @@ private:
     Adafruit_MAX31865* thermo; // Pointer to the library object
     unsigned long lastReadTime;
     float currentTemp;
+    bool isMeasuring; 
+    unsigned long measureStartTime;
 
 public:
     SensorManager();

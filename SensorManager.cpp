@@ -1,10 +1,14 @@
+#include "esp32-hal.h"
+#include <sys/_types.h>
 #include "SensorManager.h"
 #include <SPI.h>
 
 SensorManager::SensorManager() {
-    thermo = new Adafruit_MAX31865(MAX_CS, MAX_DI, MAX_DO, MAX_CLK);
+    thermo = new Adafruit_MAX31865(MAX_CS);
     lastReadTime = 0;
     currentTemp = 0.0;
+    isMeasuring = false;
+    measureStartTime = 0;
 }
 
 void SensorManager::init() {
@@ -13,19 +17,27 @@ void SensorManager::init() {
 
     // ignores the startup noise
     Serial.println("Initializing Sensor in Robust Mode...");
-    thermo->begin(MAX31865_2WIRE);
+    thermo->begin(MAX31865_3WIRE);
     thermo->clearFault();
 }
 
 void SensorManager::update() {
-    // Read every 1 second
-    if (millis() - lastReadTime > 1000) {
-        lastReadTime = millis();
+    unsigned long currentMillis = millis();
 
-        // Turn on power to the probe to measure
-        thermo->enableBias(true);
-        delay(100); 
-        
+    // Measure every 1 second.
+    // TODO: do we want 500ms instead? maybe later
+    if (!isMeasuring) {
+        if (currentMillis - lastReadTime > 1000) {
+            lastReadTime = currentMillis;
+            thermo->enableBias(true);
+            measureStartTime = currentMillis;   // Start the stopwatch
+            isMeasuring = true;
+        }
+    
+    } else {
+        // 100ms of hardware stabilization
+        if (currentMillis - measureStartTime >= 100) {
+
         float temp = thermo->temperature(RNOMINAL, RREF);
         uint8_t fault = thermo->readFault();
         
@@ -35,14 +47,16 @@ void SensorManager::update() {
             thermo->enableBias(false);
         } else {
             // CALIBRATION
-            // Subtract 0.3C to account for wire resistance ignored by 2-Wire mode
-            float calibratedTemp = temp - 0.3;
+            // 0.385ohms per 1C. 100ohms at 0C. Redundant 3WIRE mode .
+            float calibratedTemp = temp - 0.25; // Account for cable length + plugs.
             
             Serial.print("Stable Temp: "); Serial.println(calibratedTemp);
             currentTemp = calibratedTemp;
             
             thermo->enableBias(false);
+            isMeasuring = false;
         }
+    }
     }
 }
 
