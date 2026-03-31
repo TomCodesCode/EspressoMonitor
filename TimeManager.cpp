@@ -48,7 +48,6 @@ char* TimerManager::getFormattedTime() {
     int tenths = (int)((rawTime - seconds) * 10);
     //int milliseconds = (int)((rawTime - (int)rawTime) * 100);
 
-    // Format as "MM:SS:mm" (e.g., "00:05:78")
     // sprintf(buffer, "%02d:%02d:%02d", minutes, seconds, milliseconds);
     sprintf(buffer, "%02d.%d", seconds, tenths);
     

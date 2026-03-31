@@ -61,7 +61,7 @@ void CurrentManager::init() {
 
         Serial.print("Loaded Zero Point: "); Serial.println(zeroPoint);
         Serial.print("Loaded Threshold: "); Serial.println(dynamicThreshold);
-        Serial.println("-------------------------------");
+        // Serial.println("-------------------------------");
     }
 }
 

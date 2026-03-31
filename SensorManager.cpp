@@ -1,3 +1,4 @@
+#include "esp32-hal-spi.h"
 #include "esp32-hal.h"
 #include <sys/_types.h>
 #include "SensorManager.h"
@@ -48,7 +49,7 @@ void SensorManager::update() {
         } else {
             // CALIBRATION
             // 0.385ohms per 1C. 100ohms at 0C. Redundant 3WIRE mode .
-            float calibratedTemp = temp - 0.25; // Account for cable length + plugs.
+            float calibratedTemp = temp - 0.25; // Account for cable length + plugs resistance.
             
             Serial.print("Stable Temp: "); Serial.println(calibratedTemp);
             currentTemp = calibratedTemp;

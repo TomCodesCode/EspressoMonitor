@@ -9,6 +9,7 @@
 #include "TimeManager.h"
 #include "InputManager.h"
 #include "SystemState.h"
+#include "SDManager.h"
 
 // PIN DEFINITIONS
 #define CURRENT_PIN 34  // Pin for SCT sensor
@@ -26,6 +27,7 @@ SensorManager sensor;
 CurrentManager pumpSensor(CURRENT_PIN);
 TimerManager timer;
 SoundManager sound (BUZZER_PIN);
+SDManager sdCard;
 
 SystemState currentState = WARMUP; // Start in WARMUP mode
 unsigned long stateChangeTime = 0; // To track how long we've been in a state
@@ -43,7 +45,11 @@ void setup() {
     display.showStartupScreen();
     sensor.init(); // 2 wire mode
     pumpSensor.init(); // IMPORTANT: Ensure pump is OFF when you turn the machine on! (good practice regardless)
+    sdCard.init();
 
+    sdCard.testReadWrite();
+
+    Serial.println("-------------------------------");
     Serial.println("System Initialized.");
 }
 

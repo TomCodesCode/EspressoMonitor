@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <Adafruit_MAX31865.h>
 
-// Define SPI Pins
+// Define HSPI Pins
 #define MAX_CS   5
 #define MAX_DI   23
 #define MAX_DO   19
