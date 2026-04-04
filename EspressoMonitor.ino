@@ -21,7 +21,7 @@
 // SYSTEM
 Preferences sysPrefs;
 
-// --- OBJECTS ---
+// OBJECTS
 DisplayManager display;
 SensorManager sensor;
 CurrentManager pumpSensor(CURRENT_PIN);
