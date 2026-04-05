@@ -23,18 +23,12 @@ private:
     lv_obj_t * screen_brewing;
     lv_obj_t * screen_done;
     
-    lv_obj_t * screen_main;
-
     lv_obj_t * label_warmup_temp;
     lv_obj_t * label_ready_temp;
     lv_obj_t * label_brew_timer;
     lv_obj_t * label_brew_temp;
     lv_obj_t * chart_brew;
     lv_chart_series_t * chart_series_temp;
-
-    lv_obj_t * label_top;
-    lv_obj_t * label_main;
-    lv_obj_t * line_div;
 
     void preloadScreenWarmup();
     void preloadScreenReady();
@@ -68,11 +62,7 @@ public:
     void updateWarmupData(float temp);
     void updateReadyData(float temp);
     void updateBrewData(float timer, float temp);
-
-    void showStatus(const char* label, const char* value);
-    void showStatus(const char* label, float value, const char* unit); 
-    void showDoneSpam();
-    void showDown();
+    void updateDoneData(float timer, float temp);
 };
 
 #endif

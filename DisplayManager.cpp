@@ -29,28 +29,11 @@ void DisplayManager::init() {
     lv_indev_set_user_data(indev_touchpad, this); // Pass the manager object so the static callback can access 'tft'
 
     // --- STARTUP SCREEN ----------
-    screen_main = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(screen_main, lv_color_black(), 0);
-
-    // Top Label (Warming Up, Ready, etc.)
-    label_top = lv_label_create(screen_main);
-    lv_obj_set_style_text_color(label_top, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_top, &lv_font_montserrat_24, 0); // Bigger font
-
-    static lv_point_precise_t line_points[] = { {20, 90}, {300, 90} };
-    line_div = lv_line_create(screen_main);
-    lv_line_set_points(line_div, line_points, 2);
-    lv_obj_set_style_line_color(line_div, lv_color_white(), 0);
-    lv_obj_set_style_line_width(line_div, 2, 0);
-
-    // Main Value Label (Temperature, Timer)
-    label_main = lv_label_create(screen_main);
-    lv_obj_set_style_text_color(label_main, lv_color_white(), 0);
-    lv_obj_set_style_text_font(label_main, &lv_font_montserrat_48, 0); // Massive font
+    
 
     // --- PRE-BUILD SCREENS IN RAM BY STATES
     // --- WARMUP screen ----------
-    preloadScreenWarmup()
+    preloadScreenWarmup();
     // --- READY screen ----------
     preloadScreenReady();
     // --- BREWING screen ----------
@@ -88,6 +71,23 @@ void DisplayManager::update() {
 }
 
 void DisplayManager::showStartupScreen() {
+    lv_obj_t * screen_main = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(screen_main, lv_color_black(), 0);
+
+    lv_obj_t * label_top = lv_label_create(screen_main);
+    lv_obj_set_style_text_color(label_top, lv_color_white(), 0);
+    lv_obj_set_style_text_font(label_top, &lv_font_montserrat_24, 0); // Big font
+
+    static lv_point_precise_t line_points[] = { {20, 90}, {300, 90} };
+    lv_obj_t * line_div = lv_line_create(screen_main);
+    lv_line_set_points(line_div, line_points, 2);
+    lv_obj_set_style_line_color(line_div, lv_color_white(), 0);
+    lv_obj_set_style_line_width(line_div, 2, 0);
+
+    lv_obj_t * label_main = lv_label_create(screen_main);
+    lv_obj_set_style_text_color(label_main, lv_color_white(), 0);
+    lv_obj_set_style_text_font(label_main, &lv_font_montserrat_48, 0); // Massive font
+
     lv_screen_load(screen_main);
 
     // Temporarily hide the dividing line
@@ -113,36 +113,6 @@ void DisplayManager::showStartupScreen() {
     lv_obj_align(label_main, LV_ALIGN_TOP_MID, 0, 110);
     
     // Clear the text so it's ready for the sensor loop
-    lv_label_set_text(label_top, "");
-    lv_label_set_text(label_main, "");
-}
-
-void DisplayManager::showStatus(const char* label, const char* value) {
-    if (lv_screen_active() != screen_main) lv_screen_load(screen_main);
-    
-    lv_label_set_text(label_top, label);
-    lv_label_set_text(label_main, value);
-}
-
-void DisplayManager::showStatus(const char* label, float value, const char* unit) {
-    if (lv_screen_active() != screen_main) lv_screen_load(screen_main);
-    
-    lv_label_set_text(label_top, label);
-    
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%.1f %s", value, unit);
-    lv_label_set_text(label_main, buffer);
-}
-
-void DisplayManager::showDoneSpam() {
-    lv_obj_set_style_bg_color(screen_main, lv_palette_main(LV_PALETTE_GREEN), 0);
-    lv_label_set_text(label_top, "");
-    lv_obj_set_style_text_color(label_main, lv_color_black(), 0);
-    lv_label_set_text(label_main, "DONE");
-}
-
-void DisplayManager::showDown() {
-    lv_obj_set_style_bg_color(screen_main, lv_color_black(), 0);
     lv_label_set_text(label_top, "");
     lv_label_set_text(label_main, "");
 }
@@ -192,21 +162,35 @@ void DisplayManager::loadScreen(SystemState state) {
     }
 }
 
+void DisplayManager::updateWarmupData(float temp) {
+    char tempStr[16];
+    snprintf(tempStr, sizeof(tempStr), "%.1f C", temp);
+    lv_label_set_text(label_warmup_temp, tempStr);
+}
+
+void DisplayManager::updateReadyData(float temp) {
+    char tempStr[16];
+    snprintf(tempStr, sizeof(tempStr), "%.1f C", temp);
+    lv_label_set_text(label_ready_temp, tempStr);
+}
+
 void DisplayManager::updateBrewData(float timer, float temp) {
-    // 1. Format the numbers
+    // Format the numbers
     char timeStr[16];
     snprintf(timeStr, sizeof(timeStr), "%.1fs", timer);
     
     char tempStr[16];
     snprintf(tempStr, sizeof(tempStr), "%.1f C", temp);
 
-    // 2. Push to the UI
+    // Push to the UI
     lv_label_set_text(label_brew_timer, timeStr);
     lv_label_set_text(label_brew_temp, tempStr);
     
-    // 3. Add the next point to the live graph
+    // Add the next point to the live graph
     lv_chart_set_next_value(chart_brew, chart_series_temp, (int32_t)temp);
 }
+
+void DisplayManager::updateDoneData(float timer, float temp) {}
 
 void DisplayManager::preloadScreenWarmup(){
     screen_warmup = lv_obj_create(NULL);
@@ -282,9 +266,7 @@ void DisplayManager::preloadScreenBrewing(){
     lv_obj_set_style_pad_all(screen_brewing, 0, 0); 
     lv_obj_set_style_pad_column(screen_brewing, 0, 0);
 
-    // ==========================================
     // TOP PANEL (40% Height)- status + temp + time
-    // ==========================================
     lv_obj_t * brewing_top_panel = lv_obj_create(screen_brewing);
     lv_obj_set_size(brewing_top_panel, lv_pct(100), lv_pct(40));
     lv_obj_set_flex_flow(brewing_top_panel, LV_FLEX_FLOW_ROW);
@@ -323,9 +305,7 @@ void DisplayManager::preloadScreenBrewing(){
     lv_label_set_text(label_brew_timer, "00.0s");
     lv_obj_center(label_brew_timer);
 
-    // ==========================================
     // BOTTOM PANEL (60% Height)
-    // ==========================================
     lv_obj_t * bottom_panel = lv_obj_create(screen_brewing);
     lv_obj_set_size(bottom_panel, lv_pct(100), lv_pct(60));
     lv_obj_set_style_pad_all(bottom_panel, 0, 0);
@@ -369,9 +349,7 @@ void DisplayManager::preloadScreenDone(){
     lv_obj_set_style_pad_all(screen_done, 0, 0); 
     lv_obj_set_style_pad_column(screen_done, 0, 0); // No gaps between panels
 
-    // ==========================================
     // TOP PANEL (40% Height)- status + temp + time
-    // ==========================================
     lv_obj_t * done_top_panel = lv_obj_create(screen_done);
     lv_obj_set_size(done_top_panel, lv_pct(100), lv_pct(40));
     lv_obj_set_flex_flow(done_top_panel, LV_FLEX_FLOW_ROW);
@@ -410,9 +388,7 @@ void DisplayManager::preloadScreenDone(){
     lv_label_set_text(label_brew_timer, "00.0s");
     lv_obj_center(label_brew_timer);
 
-    // ==========================================
     // BOTTOM PANEL (60% Height)
-    // ==========================================
     lv_obj_t * bottom_panel = lv_obj_create(screen_done);
     lv_obj_set_size(bottom_panel, lv_pct(100), lv_pct(60));
     lv_obj_set_style_pad_all(bottom_panel, 0, 0);

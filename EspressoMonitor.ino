@@ -43,6 +43,7 @@ void setup() {
 
     display.init();
     display.showStartupScreen();
+    display.loadScreen(WARMUP);
     sensor.init(); // 2 wire mode
     pumpSensor.init(); // IMPORTANT: Ensure pump is OFF when you turn the machine on! (good practice regardless)
     sdCard.init();
@@ -69,10 +70,11 @@ void loop() {
         // Waiting for the boiler to reach steaming temp (approx 120C+ when PT100 is attached to the boiler)
         case WARMUP:
             // Display Status
-            display.showStatus("Warming Up", sensor.getTemp(), " C");
+            display.updateWarmupData(sensor.getTemp());
 
             if (sensor.getTemp() > BREW_TEMP) {
                 currentState = READY;
+                display.loadScreen(READY);
                 sound.playDoom();
                 readyTime = millis();
                 Serial.println("State: READY");
@@ -81,24 +83,28 @@ void loop() {
             if (isPumpRunning) {
                 timer.start();
                 currentState = BREWING;
+                display.loadScreen(BREWING);
+                Serial.println("State: READY");
             }
             break;
 
         // CASE: READY
         // Machine is hot. Waiting for a brew.
         case READY:
-            display.showStatus("Ready", sensor.getTemp(), " C");
+            display.updateReadyData(sensor.getTemp());
             // ADD LATER HERE: notify on phone / ip.
             // Transition -> BREWING
             if (isPumpRunning) {
                 timer.reset();
                 timer.start();
                 currentState = BREWING;
+                display.loadScreen(BREWING);
                 Serial.println("State: BREWING");
             }
             // Wating for a minute before testing the temp again. When graph math is ready- use here.
             if (millis() - readyTime > 60000 && sensor.getTemp() < BREW_TEMP) {
                 currentState = WARMUP;
+                display.loadScreen(WARMUP);
                 Serial.println("WARMUP: Temp dropped while waiting");
             }
             break;
@@ -106,13 +112,14 @@ void loop() {
         // CASE: BREWING
         // Pump is running; Timer is counting.
         case BREWING:
-            display.showStatus("Brewing", timer.getFormattedTime());
+            display.updateBrewData(timer.getSeconds(), sensor.getTemp());
 
             // Transition -> DONE (Pump Stopped)
             if (!isPumpRunning) {
                 timer.stop();
                 stateChangeTime = millis(); // Record when we finished
                 currentState = DONE;
+                display.loadScreen(DONE);
                 Serial.println("State: DONE");
             }
             break;
@@ -120,20 +127,23 @@ void loop() {
         // CASE: DONE
         // Shot finished. Show the final time for a few seconds.
         case DONE:
-            display.showStatus("Done", timer.getFormattedTime());
+            display.updateDoneData(timer.getSeconds(), sensor.getTemp());
             if (isPumpRunning) {
                 timer.reset();
                 timer.start();
                 currentState = BREWING;
+                display.loadScreen(BREWING);
                 Serial.println("BREWING (again)");
                 break;
             } else {
                 if (millis() - stateChangeTime > 10000){
                     if (sensor.getTemp() >= BREW_TEMP) {
                         currentState = READY;
+                        display.loadScreen(READY);
                         Serial.println("READY (again)- still warm enough");
                     } else {
                         currentState = WARMUP;
+                        display.loadScreen(WARMUP);
                         Serial.println("WARMUP (again)");
                     }
                 }
