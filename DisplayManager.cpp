@@ -1,3 +1,5 @@
+#include "font/lv_font.h"
+#include "misc/lv_color.h"
 #include "widgets/label/lv_label.h"
 #include "core/lv_obj.h"
 #include "misc/lv_types.h"
@@ -195,33 +197,67 @@ void DisplayManager::updateDoneData(float timer, float temp) {}
 void DisplayManager::preloadScreenWarmup(){
     screen_warmup = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(screen_warmup, lv_color_black(), 0);
+    lv_obj_remove_flag(screen_warmup, LV_OBJ_FLAG_SCROLLABLE); // kill default lv_obj scroll
     
     lv_obj_set_flex_flow(screen_warmup, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_bg_color(screen_warmup, lv_color_hex(0x1a1a1a), 0);
-    lv_obj_set_style_pad_all(screen_warmup, 0, 0); 
+    lv_obj_set_style_bg_color(screen_warmup, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_pad_all(screen_warmup, 0, 0);
     lv_obj_set_style_pad_column(screen_warmup, 0, 0);
 
     lv_obj_t * warmup_panel_main = lv_obj_create(screen_warmup);
+    lv_obj_remove_style_all(warmup_panel_main);
+    lv_obj_set_size(warmup_panel_main, lv_pct(100), lv_pct(100));
     lv_obj_set_flex_flow(warmup_panel_main, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_bg_color(warmup_panel_main, lv_color_hex(0x1a1a1a), 0);
-    lv_obj_set_style_pad_all(warmup_panel_main, 0, 0); 
+    lv_obj_set_style_bg_color(warmup_panel_main, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_pad_all(warmup_panel_main, 0, 0);
     lv_obj_set_style_pad_column(warmup_panel_main, 0, 0);
+    lv_obj_remove_flag(warmup_panel_main, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t * warmup_box_status = lv_obj_create(warmup_panel_main);
+    lv_obj_remove_style_all(warmup_box_status);
     lv_obj_set_size(warmup_box_status, lv_pct(100), lv_pct(30));
     lv_obj_set_style_bg_opa(warmup_box_status, LV_OPA_TRANSP, 0);
+    lv_obj_remove_flag(warmup_box_status, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t * warmup_label_status = lv_label_create(warmup_box_status);
+    lv_obj_remove_style_all(warmup_label_status);
+    lv_obj_set_style_text_font(warmup_label_status, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_bg_color(warmup_label_status, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_text_color(warmup_label_status, lv_color_hex(0xffffff), 0);
+    lv_obj_set_style_bg_opa(warmup_label_status, LV_OPA_100, 0);
     lv_label_set_text(warmup_label_status, "WARMUP");
     lv_obj_center(warmup_label_status);
 
     lv_obj_t * warmup_box_temp = lv_obj_create(warmup_panel_main);
+    lv_obj_remove_style_all(warmup_box_temp);
     lv_obj_set_size(warmup_box_temp, lv_pct(100), lv_pct(70));
     lv_obj_set_style_bg_opa(warmup_box_temp, LV_OPA_TRANSP, 0);
+    lv_obj_remove_flag(warmup_box_temp, LV_OBJ_FLAG_SCROLLABLE);
 
     label_warmup_temp = lv_label_create(warmup_box_temp);
+    lv_obj_remove_style_all(label_warmup_temp);
+    lv_obj_set_style_text_font(label_warmup_temp, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_bg_color(label_warmup_temp, lv_color_hex(0xffffff), 0);
+    lv_obj_set_style_bg_opa(label_warmup_temp, LV_OPA_100, 0);
     lv_label_set_text(label_warmup_temp, "--.--C");
     lv_obj_center(label_warmup_temp);
+
+    lv_obj_t * icon_bar = lv_obj_create(warmup_box_temp);
+    lv_obj_remove_flag(icon_bar, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(icon_bar, 100, 30); // Hardcoded size
+    // Pin it to the bottom right of the bottom_panel, with a 5px margin
+    lv_obj_align(icon_bar, LV_ALIGN_BOTTOM_RIGHT, -5, -5); 
+    
+    lv_obj_set_style_bg_color(icon_bar, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(icon_bar, LV_OPA_80, 0); // 80% opaque
+    lv_obj_set_style_border_width(icon_bar, 1, 0); // Optional border around the HUD
+    lv_obj_set_style_border_color(icon_bar, lv_color_white(), 0);
+    
+    // Create the SD icon text label inside the icon bar
+    icon_sd = lv_label_create(icon_bar);
+    lv_label_set_text(icon_sd, LV_SYMBOL_SD_CARD " " LV_SYMBOL_WIFI);
+    lv_obj_center(icon_sd); 
+    lv_obj_set_style_text_color(icon_sd, lv_color_white(), 0);
 }
 
 void DisplayManager::preloadScreenReady(){

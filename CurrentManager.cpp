@@ -61,7 +61,6 @@ void CurrentManager::init() {
 
         Serial.print("Loaded Zero Point: "); Serial.println(zeroPoint);
         Serial.print("Loaded Threshold: "); Serial.println(dynamicThreshold);
-        // Serial.println("-------------------------------");
     }
 }
 
@@ -115,7 +114,7 @@ float CurrentManager::readStrength() {
 }
 
 bool CurrentManager::isPumpOn() {
-    // 1. Get the raw bouncy state (checking hardware every 100ms)
+    // Get the raw bouncy state (checking hardware every 100ms)
     if (millis() - lastCheck >= 100) {
         lastCheck = millis();
         float strength = readStrength();
@@ -127,16 +126,18 @@ bool CurrentManager::isPumpOn() {
         }
     }
 
-    // 2. Apply Time-Based Debounce to smooth out EMI spikes
+    // Apply Time-Based Debounce to smooth out EMI spikes
     if (lastPumpState && !pumpIsActuallyRunning) {
         if (pumpStartTime == 0) pumpStartTime = millis(); 
-        if (millis() - pumpStartTime > 250) {             // Must be ON for 250ms
+        // Must be ON for 250ms
+        if (millis() - pumpStartTime > 250) {
             pumpIsActuallyRunning = true;
             pumpStopTime = 0;                             
         }
     } else if (!lastPumpState && pumpIsActuallyRunning) {
         if (pumpStopTime == 0) pumpStopTime = millis();   
-        if (millis() - pumpStopTime > 500) {              // Must be OFF for 500ms
+        // Must be OFF for 500ms
+        if (millis() - pumpStopTime > 500) {
             pumpIsActuallyRunning = false;
             pumpStartTime = 0;                            
         }

@@ -14,9 +14,10 @@
 class SDManager {
 private:
     SPIClass* sdSPI;
-    bool isReady;
 
 public:
+    bool isReady;
+
     SDManager();
     void init();
     bool isInitialized();

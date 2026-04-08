@@ -39,25 +39,25 @@ void SensorManager::update() {
         // 100ms of hardware stabilization
         if (currentMillis - measureStartTime >= 100) {
 
-        float temp = thermo->temperature(RNOMINAL, RREF);
-        uint8_t fault = thermo->readFault();
-        
-        if (fault) {
-            Serial.print("Fault 0x"); Serial.println(fault, HEX);
-            thermo->clearFault();
-            thermo->enableBias(false);
-        } else {
-            // CALIBRATION
-            // 0.385ohms per 1C. 100ohms at 0C. Redundant 3WIRE mode .
-            float calibratedTemp = temp - 0.25; // Account for cable length + plugs resistance.
+            float temp = thermo->temperature(RNOMINAL, RREF);
+            uint8_t fault = thermo->readFault();
             
-            Serial.print("Stable Temp: "); Serial.println(calibratedTemp);
-            currentTemp = calibratedTemp;
-            
-            thermo->enableBias(false);
-            isMeasuring = false;
+            if (fault) {
+                Serial.print("Fault 0x"); Serial.println(fault, HEX);
+                thermo->clearFault();
+                thermo->enableBias(false);
+            } else {
+                // CALIBRATION
+                // 0.385ohms per 1C. 100ohms at 0C. Redundant 3WIRE mode .
+                float calibratedTemp = temp - 0.25; // Account for cable length + plugs resistance.
+                
+                Serial.print("Stable Temp: "); Serial.println(calibratedTemp);
+                currentTemp = calibratedTemp;
+                
+                thermo->enableBias(false);
+                isMeasuring = false;
+            }
         }
-    }
     }
 }
 

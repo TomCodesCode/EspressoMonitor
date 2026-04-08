@@ -10,7 +10,7 @@ private:
     unsigned long lastCheck; // prevent blocking the CPU
     bool lastPumpState;      // prevent flickering
     
-    // --- Debounce Variables ---
+    // Debounce Variables
     unsigned long pumpStartTime;
     unsigned long pumpStopTime;
     bool pumpIsActuallyRunning; // Clean, filtered state

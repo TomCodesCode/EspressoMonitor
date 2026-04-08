@@ -16,7 +16,8 @@
 #define BUTTON_PIN  15  // Pin for the button (InputManager)
 #define BUZZER_PIN 4    // Pin for the passive buzzer. used to transmit the sounds.
 // (use ~120. at the moment- the values change for testing)
-#define BREW_TEMP 25    // default desired brewing start temp (of the boiler- the grouphead will always be much cooler)
+#define BREW_TEMP 118    // default desired brewing start temp (of the boiler- the grouphead will always be much cooler)
+#define HEAT_SOAK_TIME 812000 // time needed for the E61 grouphead to heat up AFTER the boiler is at temp.
 
 // SYSTEM
 Preferences sysPrefs;
@@ -32,7 +33,10 @@ SDManager sdCard;
 SystemState currentState = WARMUP; // Start in WARMUP mode
 unsigned long stateChangeTime = 0; // To track how long we've been in a state
 // If waiting for too long, should check if temp hasn't dropped (i.e.- maybe a smart-home switch turned off by timer)
+unsigned long peripheralsStatusCheckTime = 0;
 unsigned long readyTime = 0;
+unsigned long heatSoakStartTime = 0;
+bool isHeatSoaking = false;
 
 void setup() {
     Serial.begin(115200);
@@ -44,7 +48,7 @@ void setup() {
     display.init();
     display.showStartupScreen();
     display.loadScreen(WARMUP);
-    sensor.init(); // 2 wire mode
+    sensor.init(); // 3 wire mode
     pumpSensor.init(); // IMPORTANT: Ensure pump is OFF when you turn the machine on! (good practice regardless)
     sdCard.init();
 
@@ -60,6 +64,14 @@ void loop() {
     Serial.println(pumpSensor.readStrength());
 
     sound.update();
+
+    unsigned long currentTime = millis();
+
+    // check the peripherals' status every 10 seconds to update the display icons.
+    if (currentTime - peripheralsStatusCheckTime > 10000) {
+        display.setSDState(sdCard.isReady);
+        display.setWifiState(false); // TODO: update when server is ready!
+    }
     
     // Check pump status
     bool isPumpRunning = pumpSensor.isPumpOn();
@@ -72,8 +84,15 @@ void loop() {
             // Display Status
             display.updateWarmupData(sensor.getTemp());
 
-            if (sensor.getTemp() > BREW_TEMP) {
+            if (sensor.getTemp() > BREW_TEMP && !isHeatSoaking) {
+                isHeatSoaking = true;
+                heatSoakStartTime = millis();
+                Serial.println("Boiler at temp. Starting 13.5 min Grouphead Heat Soak.");
+            }
+
+            if (isHeatSoaking && (millis() - heatSoakStartTime >= HEAT_SOAK_TIME)) {
                 currentState = READY;
+                isHeatSoaking = false;
                 display.loadScreen(READY);
                 sound.playDoom();
                 readyTime = millis();
@@ -81,10 +100,11 @@ void loop() {
             }
             // Allow brewing even if cold (Manual Override)
             if (isPumpRunning) {
+                isHeatSoaking = false; // if brewing cold- override heat soak
                 timer.start();
                 currentState = BREWING;
                 display.loadScreen(BREWING);
-                Serial.println("State: READY");
+                Serial.println("State: BREWING");
             }
             break;
 

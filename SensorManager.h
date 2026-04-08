@@ -11,7 +11,7 @@
 #define MAX_CLK  18
 
 // The value of the reference resistor on the board in ohms.
-// Should be 430 (+- 1%) from factory. Measured 423.
+// Should be 430 (+- 1%) from factory. Measured ~423.8.
 #define RREF      424.0
 // The 'nominal' resistance of the sensor at 0C (100 for PT100)
 #define RNOMINAL  100.0

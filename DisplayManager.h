@@ -30,6 +30,9 @@ private:
     lv_obj_t * chart_brew;
     lv_chart_series_t * chart_series_temp;
 
+    bool SDStatus = true;
+    bool WifiStatus = true;
+
     void preloadScreenWarmup();
     void preloadScreenReady();
     void preloadScreenBrewing();
@@ -63,6 +66,9 @@ public:
     void updateReadyData(float temp);
     void updateBrewData(float timer, float temp);
     void updateDoneData(float timer, float temp);
+
+    void setSDState(bool SDStatus) {this->SDStatus = SDStatus;}
+    void setWifiState(bool WifiStatus) {this->WifiStatus = WifiStatus;}
 };
 
 #endif
