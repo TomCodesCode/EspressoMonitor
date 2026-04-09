@@ -86,16 +86,16 @@ void loop() {
 
             if (sensor.getTemp() > BREW_TEMP && !isHeatSoaking) {
                 isHeatSoaking = true;
-                heatSoakStartTime = millis();
+                heatSoakStartTime = currentTime;
                 Serial.println("Boiler at temp. Starting 13.5 min Grouphead Heat Soak.");
             }
 
-            if (isHeatSoaking && (millis() - heatSoakStartTime >= HEAT_SOAK_TIME)) {
+            if (isHeatSoaking && (currentTime - heatSoakStartTime >= HEAT_SOAK_TIME)) {
                 currentState = READY;
                 isHeatSoaking = false;
                 display.loadScreen(READY);
                 sound.playDoom();
-                readyTime = millis();
+                readyTime = currentTime;
                 Serial.println("State: READY");
             }
             // Allow brewing even if cold (Manual Override)
@@ -122,7 +122,7 @@ void loop() {
                 Serial.println("State: BREWING");
             }
             // Wating for a minute before testing the temp again. When graph math is ready- use here.
-            if (millis() - readyTime > 60000 && sensor.getTemp() < BREW_TEMP) {
+            if (currentTime - readyTime > 60000 && sensor.getTemp() < BREW_TEMP) {
                 currentState = WARMUP;
                 display.loadScreen(WARMUP);
                 Serial.println("WARMUP: Temp dropped while waiting");
@@ -137,7 +137,7 @@ void loop() {
             // Transition -> DONE (Pump Stopped)
             if (!isPumpRunning) {
                 timer.stop();
-                stateChangeTime = millis(); // Record when we finished
+                stateChangeTime = currentTime; // Record when we finished
                 currentState = DONE;
                 display.loadScreen(DONE);
                 Serial.println("State: DONE");
@@ -156,7 +156,7 @@ void loop() {
                 Serial.println("BREWING (again)");
                 break;
             } else {
-                if (millis() - stateChangeTime > 10000){
+                if (currentTime - stateChangeTime > 10000){
                     if (sensor.getTemp() >= BREW_TEMP) {
                         currentState = READY;
                         display.loadScreen(READY);

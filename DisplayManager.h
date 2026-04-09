@@ -16,7 +16,7 @@ private:
     
     // v9 uses a standard byte array for the buffer (16-bit color = 2 bytes per pixel)
     uint8_t draw_buf[screenWidth * screenHeight / 10 * 2];
-
+2
     // LVGL UI Elements
     lv_obj_t * screen_warmup;
     lv_obj_t * screen_ready;
