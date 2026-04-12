@@ -41,7 +41,7 @@ public:
     void showStartupScreen();
 
     void loadScreen(SystemState state); 
-    void updateWarmupData(float temp);
+    void updateWarmupData(float boilerTemp, float estGroupheadTemp);
     void updateReadyData(float temp);
     void updateBrewData(float timer, float temp);
     void updateDoneData(float timer, float temp);

@@ -4,6 +4,15 @@
 #include "SensorManager.h"
 #include <SPI.h>
 
+// VBM Domobar Junior is an E61 machine, so after the boiler reaches its target temp, the brass needs to heat up the grouphead (takes 11 - 15 minutes usually)
+const float targetGroupheadTemp = 91.0 + 14.0; // 91c target + 14 to account for calculation asymptote
+const float initialGroupheadTemp = 50.0; // assumed grouphead temp when boiler is ready
+
+// The "sluggishness" factor of the brass. The calculation used Newton's Law of Heating to estimate grouphead temp.
+// calculation: 13.5 minutes to heat the grouphead after boiler is at temp. using Newton's Law of Heating, we never reach the max asymptote (91c target),
+// so we calculate for tau: 91 = 105 - (105 - 50)*e^(-812/tau) -> tau = ~592.
+const float tau = 592.0;
+
 SensorManager::SensorManager() {
     thermo = new Adafruit_MAX31865(MAX_CS);
     lastReadTime = 0;
@@ -59,6 +68,18 @@ void SensorManager::update() {
             }
         }
     }
+}
+
+#include <math.h>
+
+float getEstimatedGroupheadTemp(unsigned long timeSinceBoilerReadyMs) {
+    // Convert elapsed time to seconds
+    float timeSeconds = timeSinceBoilerReadyMs / 1000.0;
+
+    // Newton's law of heating / cooling
+    float estimatedTemp = targetGroupheadTemp - (targetGroupheadTemp - initialGroupheadTemp) * exp(-timeSeconds / tau);
+
+    return estimatedTemp;
 }
 
 float SensorManager::getTemp() { return currentTemp; }

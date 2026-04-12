@@ -14,20 +14,28 @@ extern "C" {
 extern void ui_ScreenWarmup_screen_init(void);
 extern void ui_ScreenWarmup_screen_destroy(void);
 extern lv_obj_t * ui_ScreenWarmup;
-extern lv_obj_t * ui_PanelWater;
-extern lv_obj_t * ui_ImgWave;
-extern lv_obj_t * ui_PanelOverlay;
-extern lv_obj_t * ui_PanelBottomBar;
-extern lv_obj_t * ui_PanelIcons;
-extern lv_obj_t * ui_LabelWiFi;
-extern lv_obj_t * ui_LabelSD;
-extern lv_obj_t * ui_BtnSettings;
-extern lv_obj_t * ui_LabelSettings;
-extern lv_obj_t * ui_PanelTopBar;
-extern lv_obj_t * ui_LabelStatus;
-extern lv_obj_t * ui_BtnGame;
-extern lv_obj_t * ui_Label2;
-extern lv_obj_t * ui_LabelTemp;
+extern lv_obj_t * ui_WarmupPanelWater;
+extern lv_obj_t * ui_WarmupImgWave;
+extern lv_obj_t * ui_WarmupPanelOverlay;
+extern lv_obj_t * ui_WarmupPanelBottomBar;
+extern lv_obj_t * ui_WarmupPanelIcons;
+extern lv_obj_t * ui_WarmupLabelWiFi;
+extern lv_obj_t * ui_WarmupLabelSD;
+extern lv_obj_t * ui_WarmupBtnSettings;
+extern lv_obj_t * ui_WarmupLabelSettings;
+extern lv_obj_t * ui_WarmupPanelTopBar;
+extern lv_obj_t * ui_WarmupLabelStatus;
+extern lv_obj_t * ui_WarmupBtnGame;
+extern lv_obj_t * ui_WarmupLabelGame;
+extern lv_obj_t * ui_WarmupBtnTest;
+extern lv_obj_t * ui_WarmupLabelTest;
+extern lv_obj_t * ui_WarmupArcBoiler;
+extern lv_obj_t * ui_WarmupPanelTemp;
+extern lv_obj_t * ui_WarmupLabelBoiler;
+extern lv_obj_t * ui_WarmupLabelBoilerTemp;
+extern lv_obj_t * ui_WarmupPanelGrouphead;
+extern lv_obj_t * ui_WarmupLabelGrouphead;
+extern lv_obj_t * ui_WarmupLabelGroupheadTemp;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

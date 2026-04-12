@@ -29,6 +29,7 @@ public:
     void init();
     void update();
     float getTemp();
+    float getEstimatedGroupheadTemp(unsigned long timeSinceBoilerReadyMs);
     
     // Helper to check if the sensor is actually connected
     bool checkFaults(); 

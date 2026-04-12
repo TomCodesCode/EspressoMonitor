@@ -16,7 +16,8 @@
 #define BUTTON_PIN  15  // Pin for the button (InputManager)
 #define BUZZER_PIN 4    // Pin for the passive buzzer. used to transmit the sounds.
 // (use ~120. at the moment- the values change for testing)
-#define BREW_TEMP 118    // default desired brewing start temp (of the boiler- the grouphead will always be much cooler)
+#define BOILER_BREW_TEMP 118    // default desired brewing start temp (of the boiler- the grouphead will always be much cooler)
+#define GROUPHEAD_BREW_TEMP 91 // desired grouphead brew temp (will result in actual textbook 93-97 C brewing temp)
 #define HEAT_SOAK_TIME 812000 // time needed for the E61 grouphead to heat up AFTER the boiler is at temp.
 
 // SYSTEM
@@ -36,10 +37,11 @@ unsigned long stateChangeTime = 0; // To track how long we've been in a state
 unsigned long peripheralsStatusCheckTime = 0;
 unsigned long readyTime = 0;
 unsigned long heatSoakStartTime = 0;
-bool isHeatSoaking = false;
+bool isBoilerReady = false;
 
 // TESTING vars
-float mockTemp = 25.0;
+float mockTempBoiler = 25.0;
+float mockTempGH = 0.0;
 unsigned long lastUpdateT = 0;
 
 void setup() {
@@ -85,30 +87,39 @@ void loop() {
         // CASE: WARMING UP
         // Waiting for the boiler to reach steaming temp (approx 120C+ when PT100 is attached to the boiler)
         case WARMUP:
-            display.updateWarmupData(mockTemp);
-            if (millis() - lastUpdateT > 1000) {
+            // *TESTING*
+
+            display.updateWarmupData(mockTempBoiler, mockTempGH);
+            if (millis() - lastUpdateT > 100) {
                 lastUpdateT = millis();
                 
-                mockTemp += 0.5; // Heat up by 0.5 degrees
+                mockTempBoiler += 0.5; // Heat up by 0.5 degrees
                 
-                if (mockTemp > 120.0) {
-                    mockTemp = 25.0; // Reset
+                if (mockTempBoiler > 120.0 && mockTempGH < 40.0) {
+                    mockTempGH = 50.0;
                 }
-            }
+                if (mockTempGH >= 50.0) {
+                        mockTempGH += 0.5;
+                }
+                if (mockTempGH > 91.0) {
+                    mockTempBoiler = 25.0;
+                    mockTempGH = 0.0;
+                }
+            } // END OF TESTING
         /*
             // Display Status
-            
-            display.updateWarmupData(sensor.getTemp());
+            unsigned long boilerReadyTime = isBoilerReady ? currentTime - heatSoakStartTime : 0;
+            display.updateWarmupData(sensor.getTemp(), sensor.getEstimatedGroupheadTemp(boilerReadyTime));
 
-            if (sensor.getTemp() > BREW_TEMP && !isHeatSoaking) {
-                isHeatSoaking = true;
+            if (sensor.getTemp() > BOILER_BREW_TEMP && !isBoilerReady) {
+                isBoilerReady = true;
                 heatSoakStartTime = currentTime;
                 Serial.println("Boiler at temp. Starting 13.5 min Grouphead Heat Soak.");
             }
 
-            if (isHeatSoaking && (currentTime - heatSoakStartTime >= HEAT_SOAK_TIME)) {
+            if (isBoilerReady && (sensor.getEstimatedGroupheadTemp(boilerReadyTime) >= GROUPHEAD_BREW_TEMP)) {
                 currentState = READY;
-                isHeatSoaking = false;
+                isBoilerReady = false;
                 display.loadScreen(READY);
                 sound.playDoom();
                 readyTime = currentTime;
@@ -116,7 +127,7 @@ void loop() {
             }
             // Allow brewing even if cold (Manual Override)
             if (isPumpRunning) {
-                isHeatSoaking = false; // if brewing cold- override heat soak
+                isBoilerReady = false; // if brewing cold- override heat soak
                 timer.start();
                 currentState = BREWING;
                 display.loadScreen(BREWING);
@@ -140,7 +151,7 @@ void loop() {
                 Serial.println("State: BREWING");
             }
             // Wating for a minute before testing the temp again. When graph math is ready- use here.
-            if (currentTime - readyTime > 60000 && sensor.getTemp() < BREW_TEMP) {
+            if (currentTime - readyTime > 60000 && sensor.getTemp() < BOILER_BREW_TEMP) {
                 currentState = WARMUP;
                 display.loadScreen(WARMUP);
                 Serial.println("WARMUP: Temp dropped while waiting");
@@ -175,7 +186,7 @@ void loop() {
                 break;
             } else {
                 if (currentTime - stateChangeTime > 10000){
-                    if (sensor.getTemp() >= BREW_TEMP) {
+                    if (sensor.getTemp() >= BOILER_BREW_TEMP) {
                         currentState = READY;
                         display.loadScreen(READY);
                         Serial.println("READY (again)- still warm enough");

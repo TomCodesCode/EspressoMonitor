@@ -1,10 +1,15 @@
-#include "font/lv_font.h"
+#include "font/lv_symbol_def.h"
 #include "misc/lv_color.h"
-#include "widgets/label/lv_label.h"
 #include "core/lv_obj.h"
-#include "misc/lv_types.h"
-#include "misc/lv_area.h"
-#include "layouts/flex/lv_flex.h"
+// #include "core/lv_obj_style_gen.h"
+// #include "core/lv_obj_pos.h"
+// #include "font/lv_font.h"
+// #include "misc/lv_color.h"
+// #include "widgets/label/lv_label.h"
+// #include "core/lv_obj.h"
+// #include "misc/lv_types.h"
+// #include "misc/lv_area.h"
+// #include "layouts/flex/lv_flex.h"
 #include "DisplayManager.h"
 #include "src/ui/ui.h"
 
@@ -33,8 +38,8 @@ void DisplayManager::init() {
     // BOOT THE SQUARELINE UI
     ui_init();
 
-    lv_label_set_text(ui_LabelSD, LV_SYMBOL_SD_CARD);
-    lv_label_set_text(ui_LabelWiFi, LV_SYMBOL_WIFI);
+    lv_label_set_text(ui_WarmupLabelSD, LV_SYMBOL_SD_CARD);
+    lv_label_set_text(ui_WarmupLabelWiFi, LV_SYMBOL_WIFI);
     
     animateWarmupWave();
 
@@ -135,7 +140,7 @@ void DisplayManager::my_touchpad_read(lv_indev_t * indev, lv_indev_data_t * data
 
 void DisplayManager::loadScreen(SystemState state) {
     switch(state) {
-        case WARMUP: lv_screen_load(ui_ScreenWarmup); break; // Use the SquareLine pointer!
+        case WARMUP: lv_screen_load(ui_ScreenWarmup); break;
         // case READY:  lv_screen_load(screen_ready); break;
         // case BREWING: 
         //    lv_screen_load(screen_brewing); 
@@ -144,17 +149,30 @@ void DisplayManager::loadScreen(SystemState state) {
     }
 }
 
-void DisplayManager::updateWarmupData(float temp) {
-    // 1. Update the Text Label
-    char tempStr[16];
-    snprintf(tempStr, sizeof(tempStr), "%.1f C", temp);
-    lv_label_set_text(ui_LabelTemp, tempStr); 
+void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) {
+    char boilerStr[16];
+    snprintf(boilerStr, sizeof(boilerStr), "%.1f C", boilerTemp);
+    lv_label_set_text(ui_WarmupLabelBoilerTemp, boilerStr);
 
-    // 2. Thermodynamics Math (Clamp the temperature)
-    float minTemp = 25.0;  
-    float maxTemp = 118.0; 
+    if (estGroupheadTemp == 0.0) {
+        lv_obj_set_y(ui_WarmupPanelTemp, 20);
+        lv_obj_add_flag(ui_WarmupPanelGrouphead, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(ui_WarmupArcBoiler, LV_OBJ_FLAG_HIDDEN);
+        lv_arc_set_value(ui_WarmupArcBoiler, (int)boilerTemp);
+    } else {
+        lv_obj_set_y(ui_WarmupPanelTemp, -30);
+        lv_obj_remove_flag(ui_WarmupPanelGrouphead, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(ui_WarmupArcBoiler, LV_OBJ_FLAG_HIDDEN);
+        char ghStr[16];
+        snprintf(ghStr, sizeof(boilerStr), "%.1f C", estGroupheadTemp);
+        lv_label_set_text(ui_WarmupLabelGroupheadTemp, ghStr);
+        // lv_obj_set_style_text_color(ui_WarmupPanelGrouphead, lv_color_hex(0x000000), 0);
+    }
+    // Thermodynamics Math (Clamp the temperature)
+    float minTemp = 50.0;
+    float maxTemp = 91.0;
     
-    float clampedTemp = temp;
+    float clampedTemp = estGroupheadTemp;
     if (clampedTemp < minTemp) clampedTemp = minTemp;
     if (clampedTemp > maxTemp) clampedTemp = maxTemp;
 
@@ -175,16 +193,16 @@ void DisplayManager::updateWarmupData(float temp) {
         waveY = screenHeight - waveHeight;
     }
 
-    lv_obj_set_height(ui_PanelWater, waterHeight);
-    lv_obj_set_y(ui_ImgWave, waveY);
+    lv_obj_set_height(ui_WarmupPanelWater, waterHeight);
+    lv_obj_set_y(ui_WarmupImgWave, waveY);
 
     // Color Blending (Blue to Red)
     uint8_t mixRatio = (uint8_t)(heatPercentage * 255.0);
     lv_color_t fluidColor = lv_color_mix(lv_color_hex(0xFF0000), lv_color_hex(0x0000FF), mixRatio);
 
     // Apply the exact same tint to both the solid box and the white wave cap
-    lv_obj_set_style_bg_color(ui_PanelWater, fluidColor, 0);
-    lv_obj_set_style_image_recolor(ui_ImgWave, fluidColor, 0);
+    lv_obj_set_style_bg_color(ui_WarmupPanelWater, fluidColor, 0);
+    lv_obj_set_style_image_recolor(ui_WarmupImgWave, fluidColor, 0);
 }
 
 void DisplayManager::updateReadyData(float temp) {}
@@ -197,13 +215,13 @@ void DisplayManager::animateWarmupWave() {
     lv_anim_t a;
     lv_anim_init(&a);
     
-    lv_anim_set_var(&a, ui_ImgWave);
+    lv_anim_set_var(&a, ui_WarmupImgWave);
     
     lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_x);
     
     lv_anim_set_values(&a, 80, -80); 
     
-    lv_anim_set_duration(&a, 3000); 
+    lv_anim_set_duration(&a, 4000); 
     
     // constant speed
     lv_anim_set_path_cb(&a, lv_anim_path_linear); 
@@ -220,7 +238,7 @@ void DisplayManager::setSDState(bool isConnected) {
 
     lv_color_t color = isConnected ? lv_color_hex(0xFFFFFF) : lv_color_hex(0xFF0000);
 
-    lv_obj_set_style_text_color(ui_LabelSD, color, 0);
+    lv_obj_set_style_text_color(ui_WarmupLabelSD, color, 0);
 }
 
 void DisplayManager::setWifiState(bool isConnected) {
@@ -228,5 +246,5 @@ void DisplayManager::setWifiState(bool isConnected) {
 
     lv_color_t color = isConnected ? lv_color_hex(0xFFFFFF) : lv_color_hex(0xFF0000);
 
-    lv_obj_set_style_text_color(ui_LabelWiFi, color, 0);
+    lv_obj_set_style_text_color(ui_WarmupLabelWiFi, color, 0);
 }
