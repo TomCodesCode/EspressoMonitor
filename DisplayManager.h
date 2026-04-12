@@ -16,41 +16,20 @@ private:
     
     // v9 uses a standard byte array for the buffer (16-bit color = 2 bytes per pixel)
     uint8_t draw_buf[screenWidth * screenHeight / 10 * 2];
-2
-    // LVGL UI Elements
-    lv_obj_t * screen_warmup;
-    lv_obj_t * screen_ready;
-    lv_obj_t * screen_brewing;
-    lv_obj_t * screen_done;
-    
-    lv_obj_t * label_warmup_temp;
-    lv_obj_t * label_ready_temp;
-    lv_obj_t * label_brew_timer;
-    lv_obj_t * label_brew_temp;
-    lv_obj_t * chart_brew;
-    lv_chart_series_t * chart_series_temp;
 
     bool SDStatus = true;
     bool WifiStatus = true;
 
-    void preloadScreenWarmup();
-    void preloadScreenReady();
-    void preloadScreenBrewing();
-    void preloadScreenDone();
-
     // LVGL v9 Touch Variables
     lv_indev_t * indev_touchpad;
     static void my_touchpad_read(lv_indev_t * indev, lv_indev_data_t * data);
-    
-    lv_obj_t * btn_test;
-    lv_obj_t * label_btn;
-    lv_obj_t * label_timer;
-    lv_obj_t * icon_sd;
-    static void btn_event_cb(lv_event_t * e);
 
     // The v9 Bridge
     static void my_disp_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map);
     void flush_impl(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map);
+
+    // helpers
+    void animateWarmupWave();
 
     uint32_t lastTickMillis;
 
@@ -67,8 +46,8 @@ public:
     void updateBrewData(float timer, float temp);
     void updateDoneData(float timer, float temp);
 
-    void setSDState(bool SDStatus) {this->SDStatus = SDStatus;}
-    void setWifiState(bool WifiStatus) {this->WifiStatus = WifiStatus;}
+    void setSDState(bool isConnected);
+    void setWifiState(bool isConnected);
 };
 
 #endif

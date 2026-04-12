@@ -38,6 +38,10 @@ unsigned long readyTime = 0;
 unsigned long heatSoakStartTime = 0;
 bool isHeatSoaking = false;
 
+// TESTING vars
+float mockTemp = 25.0;
+unsigned long lastUpdateT = 0;
+
 void setup() {
     Serial.begin(115200);
     delay(1000);
@@ -70,18 +74,30 @@ void loop() {
     // check the peripherals' status every 10 seconds to update the display icons.
     if (currentTime - peripheralsStatusCheckTime > 10000) {
         display.setSDState(sdCard.isReady);
-        display.setWifiState(false); // TODO: update when server is ready!
+        // TODO: update when server is ready!
+        display.setWifiState(false);
     }
     
     // Check pump status
     bool isPumpRunning = pumpSensor.isPumpOn();
 
     switch (currentState) {
-        
         // CASE: WARMING UP
         // Waiting for the boiler to reach steaming temp (approx 120C+ when PT100 is attached to the boiler)
         case WARMUP:
+            display.updateWarmupData(mockTemp);
+            if (millis() - lastUpdateT > 1000) {
+                lastUpdateT = millis();
+                
+                mockTemp += 0.5; // Heat up by 0.5 degrees
+                
+                if (mockTemp > 120.0) {
+                    mockTemp = 25.0; // Reset
+                }
+            }
+        /*
             // Display Status
+            
             display.updateWarmupData(sensor.getTemp());
 
             if (sensor.getTemp() > BREW_TEMP && !isHeatSoaking) {
@@ -106,7 +122,9 @@ void loop() {
                 display.loadScreen(BREWING);
                 Serial.println("State: BREWING");
             }
+            */
             break;
+            
 
         // CASE: READY
         // Machine is hot. Waiting for a brew.
