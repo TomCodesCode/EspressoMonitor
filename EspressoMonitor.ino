@@ -86,7 +86,7 @@ void loop() {
     switch (currentState) {
         // CASE: WARMING UP
         // Waiting for the boiler to reach steaming temp (approx 120C+ when PT100 is attached to the boiler)
-        case WARMUP:
+        case WARMUP:{
             // *TESTING*
 
             display.updateWarmupData(mockTempBoiler, mockTempGH);
@@ -108,33 +108,35 @@ void loop() {
             } // END OF TESTING
         /*
             // Display Status
-            unsigned long boilerReadyTime = isBoilerReady ? currentTime - heatSoakStartTime : 0;
-            display.updateWarmupData(sensor.getTemp(), sensor.getEstimatedGroupheadTemp(boilerReadyTime));
+            
+                unsigned long boilerReadyTime = isBoilerReady ? currentTime - heatSoakStartTime : 0;
+                display.updateWarmupData(sensor.getTemp(), sensor.getEstimatedGroupheadTemp(boilerReadyTime));
 
-            if (sensor.getTemp() > BOILER_BREW_TEMP && !isBoilerReady) {
-                isBoilerReady = true;
-                heatSoakStartTime = currentTime;
-                Serial.println("Boiler at temp. Starting 13.5 min Grouphead Heat Soak.");
-            }
+                if (sensor.getTemp() > BOILER_BREW_TEMP && !isBoilerReady) {
+                    isBoilerReady = true;
+                    heatSoakStartTime = currentTime;
+                    Serial.println("Boiler at temp. Starting 13.5 min Grouphead Heat Soak.");
+                }
 
-            if (isBoilerReady && (sensor.getEstimatedGroupheadTemp(boilerReadyTime) >= GROUPHEAD_BREW_TEMP)) {
-                currentState = READY;
-                isBoilerReady = false;
-                display.loadScreen(READY);
-                sound.playDoom();
-                readyTime = currentTime;
-                Serial.println("State: READY");
+                if (isBoilerReady && (sensor.getEstimatedGroupheadTemp(boilerReadyTime) >= GROUPHEAD_BREW_TEMP)) {
+                    currentState = READY;
+                    isBoilerReady = false;
+                    display.loadScreen(READY);
+                    sound.playDoom();
+                    readyTime = currentTime;
+                    Serial.println("State: READY");
+                }
+                // Allow brewing even if cold (Manual Override)
+                if (isPumpRunning) {
+                    isBoilerReady = false; // if brewing cold- override heat soak
+                    timer.start();
+                    currentState = BREWING;
+                    display.loadScreen(BREWING);
+                    Serial.println("State: BREWING");
+                }
+                */
+                break;
             }
-            // Allow brewing even if cold (Manual Override)
-            if (isPumpRunning) {
-                isBoilerReady = false; // if brewing cold- override heat soak
-                timer.start();
-                currentState = BREWING;
-                display.loadScreen(BREWING);
-                Serial.println("State: BREWING");
-            }
-            */
-            break;
             
 
         // CASE: READY

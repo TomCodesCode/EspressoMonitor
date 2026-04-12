@@ -72,7 +72,7 @@ void SensorManager::update() {
 
 #include <math.h>
 
-float getEstimatedGroupheadTemp(unsigned long timeSinceBoilerReadyMs) {
+float SensorManager::getEstimatedGroupheadTemp(unsigned long timeSinceBoilerReadyMs) {
     // Convert elapsed time to seconds
     float timeSeconds = timeSinceBoilerReadyMs / 1000.0;
 

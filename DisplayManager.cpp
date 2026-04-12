@@ -166,7 +166,6 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
         char ghStr[16];
         snprintf(ghStr, sizeof(boilerStr), "%.1f C", estGroupheadTemp);
         lv_label_set_text(ui_WarmupLabelGroupheadTemp, ghStr);
-        // lv_obj_set_style_text_color(ui_WarmupPanelGrouphead, lv_color_hex(0x000000), 0);
     }
     // Thermodynamics Math (Clamp the temperature)
     float minTemp = 50.0;
