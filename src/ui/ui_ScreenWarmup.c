@@ -6,7 +6,7 @@
 #include "ui.h"
 
 lv_obj_t * ui_ScreenWarmup = NULL;
-lv_obj_t * ui_WarmupPanelWater = NULL;
+lv_obj_t * ui_WarmupBarWater = NULL;
 lv_obj_t * ui_WarmupImgWave = NULL;
 lv_obj_t * ui_WarmupPanelOverlay = NULL;
 lv_obj_t * ui_WarmupPanelBottomBar = NULL;
@@ -36,21 +36,38 @@ void ui_ScreenWarmup_screen_init(void)
     lv_obj_remove_flag(ui_ScreenWarmup, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC |
                        LV_OBJ_FLAG_SCROLL_MOMENTUM);    /// Flags
 
-    ui_WarmupPanelWater = lv_obj_create(ui_ScreenWarmup);
-    lv_obj_set_width(ui_WarmupPanelWater, lv_pct(100));
-    lv_obj_set_height(ui_WarmupPanelWater, lv_pct(100));
-    lv_obj_set_align(ui_WarmupPanelWater, LV_ALIGN_BOTTOM_MID);
-    lv_obj_add_flag(ui_WarmupPanelWater, LV_OBJ_FLAG_OVERFLOW_VISIBLE);     /// Flags
-    lv_obj_remove_flag(ui_WarmupPanelWater,
+    ui_WarmupBarWater = lv_bar_create(ui_ScreenWarmup);
+    lv_bar_set_range(ui_WarmupBarWater, 0, 321);
+    lv_bar_set_value(ui_WarmupBarWater, 25, LV_ANIM_OFF);
+    lv_bar_set_start_value(ui_WarmupBarWater, 0, LV_ANIM_OFF);
+    lv_obj_set_width(ui_WarmupBarWater, 320);
+    lv_obj_set_height(ui_WarmupBarWater, 321);
+    lv_obj_set_align(ui_WarmupBarWater, LV_ALIGN_BOTTOM_MID);
+    lv_obj_remove_flag(ui_WarmupBarWater,
+                       LV_OBJ_FLAG_PRESS_LOCK | LV_OBJ_FLAG_CLICK_FOCUSABLE | LV_OBJ_FLAG_GESTURE_BUBBLE | LV_OBJ_FLAG_SNAPPABLE |
                        LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM |
                        LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
-    lv_obj_set_style_radius(ui_WarmupPanelWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_WarmupPanelWater, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_WarmupPanelWater, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_border_width(ui_WarmupPanelWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_width(ui_WarmupPanelWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_outline_pad(ui_WarmupPanelWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_WarmupBarWater, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_left(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_right(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_top(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_bottom(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_row(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_pad_column(ui_WarmupBarWater, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
+    lv_obj_set_style_radius(ui_WarmupBarWater, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_WarmupBarWater, lv_color_hex(0x0000FF), LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_WarmupBarWater, 255, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_WarmupBarWater, 0, LV_PART_INDICATOR | LV_STATE_DEFAULT);
+
+    //Compensating for LVGL9.1 draw crash with bar/slider max value when top-padding is nonzero and right-padding is 0
+    if(lv_obj_get_style_pad_top(ui_WarmupBarWater, LV_PART_MAIN) > 0) lv_obj_set_style_pad_right(ui_WarmupBarWater,
+                                                                                                     lv_obj_get_style_pad_right(ui_WarmupBarWater, LV_PART_MAIN) + 1, LV_PART_MAIN);
     ui_WarmupImgWave = lv_image_create(ui_ScreenWarmup);
     lv_image_set_src(ui_WarmupImgWave, &ui_img_487075786);
     lv_obj_set_width(ui_WarmupImgWave, LV_SIZE_CONTENT);   /// 1
@@ -87,6 +104,10 @@ void ui_ScreenWarmup_screen_init(void)
     lv_obj_set_style_shadow_offset_y(ui_WarmupPanelOverlay, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_row(ui_WarmupPanelOverlay, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_pad_column(ui_WarmupPanelOverlay, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_radius(ui_WarmupPanelOverlay, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_WarmupPanelOverlay, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_WarmupPanelOverlay, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
     ui_WarmupPanelBottomBar = lv_obj_create(ui_WarmupPanelOverlay);
     lv_obj_set_width(ui_WarmupPanelBottomBar, 320);
@@ -289,7 +310,7 @@ void ui_ScreenWarmup_screen_destroy(void)
 
     // NULL screen variables
     ui_ScreenWarmup = NULL;
-    ui_WarmupPanelWater = NULL;
+    ui_WarmupBarWater = NULL;
     ui_WarmupImgWave = NULL;
     ui_WarmupPanelOverlay = NULL;
     ui_WarmupPanelBottomBar = NULL;

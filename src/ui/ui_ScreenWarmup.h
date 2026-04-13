@@ -14,7 +14,7 @@ extern "C" {
 extern void ui_ScreenWarmup_screen_init(void);
 extern void ui_ScreenWarmup_screen_destroy(void);
 extern lv_obj_t * ui_ScreenWarmup;
-extern lv_obj_t * ui_WarmupPanelWater;
+extern lv_obj_t * ui_WarmupBarWater;
 extern lv_obj_t * ui_WarmupImgWave;
 extern lv_obj_t * ui_WarmupPanelOverlay;
 extern lv_obj_t * ui_WarmupPanelBottomBar;

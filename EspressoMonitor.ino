@@ -67,7 +67,6 @@ void setup() {
 void loop() {
     // UPDATE INPUTS
     sensor.update();
-    Serial.println(pumpSensor.readStrength());
 
     sound.update();
 
@@ -89,7 +88,14 @@ void loop() {
         case WARMUP:{
             // *TESTING*
 
-            display.updateWarmupData(mockTempBoiler, mockTempGH);
+            static float lastDrawnBoiler = -1.0;
+            static float lastDrawnGH = -1.0;
+
+            if (abs(mockTempBoiler - lastDrawnBoiler) > 0.1 || abs(mockTempGH - lastDrawnGH) > 0.1) {
+                display.updateWarmupData(mockTempBoiler, mockTempGH);
+                lastDrawnBoiler = mockTempBoiler;
+                lastDrawnGH = mockTempGH;
+            }
             if (millis() - lastUpdateT > 100) {
                 lastUpdateT = millis();
                 

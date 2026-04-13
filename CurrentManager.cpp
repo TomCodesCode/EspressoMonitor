@@ -118,6 +118,7 @@ bool CurrentManager::isPumpOn() {
     if (millis() - lastCheck >= 100) {
         lastCheck = millis();
         float strength = readStrength();
+        Serial.println(strength);
 
         if (lastPumpState) {
             if (strength < (dynamicThreshold - 1.0)) lastPumpState = false;

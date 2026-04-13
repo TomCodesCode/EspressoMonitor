@@ -154,12 +154,14 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
 
     if (estGroupheadTemp == 0.0) {
         lv_obj_set_y(ui_WarmupPanelTemp, 20);
+        lv_obj_add_flag(ui_WarmupBarWater, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(ui_WarmupPanelGrouphead, LV_OBJ_FLAG_HIDDEN);
         lv_obj_remove_flag(ui_WarmupArcBoiler, LV_OBJ_FLAG_HIDDEN);
         lv_arc_set_value(ui_WarmupArcBoiler, (int)boilerTemp);
     } else {
         lv_obj_set_y(ui_WarmupPanelTemp, -30);
         lv_obj_remove_flag(ui_WarmupPanelGrouphead, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(ui_WarmupBarWater, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(ui_WarmupArcBoiler, LV_OBJ_FLAG_HIDDEN);
         char ghStr[16];
         snprintf(ghStr, sizeof(boilerStr), "%.1f C", estGroupheadTemp);
@@ -184,6 +186,8 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
 
     // The solid water box grows from the bottom up based on temperature
     int waterHeight = (int)(heatPercentage * screenHeight);
+
+    lv_bar_set_value(ui_WarmupBarWater, waterHeight, LV_ANIM_OFF);
     
     // Calculate where the top of that water box is
     // down by subtracting the water height and its own height from the total.
@@ -194,7 +198,7 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
         waveY = screenHeight - waveHeight;
     }
 
-    lv_obj_set_height(ui_WarmupPanelWater, waterHeight);
+    // lv_obj_set_height(ui_WarmupPanelWater, waterHeight);
     lv_obj_set_y(ui_WarmupImgWave, waveY);
 
     // Color Blending (Blue to Red)
@@ -205,7 +209,7 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
 
     lv_obj_set_style_arc_color(ui_WarmupArcBoiler, arcColor, LV_PART_INDICATOR);
     // Apply the exact same tint to both the solid box and the white wave cap
-    lv_obj_set_style_bg_color(ui_WarmupPanelWater, fluidColor, 0);
+    lv_obj_set_style_bg_color(ui_WarmupBarWater, fluidColor, LV_PART_INDICATOR);
     lv_obj_set_style_image_recolor(ui_WarmupImgWave, fluidColor, 0);
 }
 
@@ -225,7 +229,7 @@ void DisplayManager::animateWarmupWave() {
     
     lv_anim_set_values(&a, 80, -80); 
     
-    lv_anim_set_duration(&a, 4000); 
+    lv_anim_set_duration(&a, 8000); 
     
     // constant speed
     lv_anim_set_path_cb(&a, lv_anim_path_linear); 
