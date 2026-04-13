@@ -15,7 +15,10 @@ private:
     lv_display_t * disp;
     
     // v9 uses a standard byte array for the buffer (16-bit color = 2 bytes per pixel)
-    uint8_t draw_buf[screenWidth * screenHeight / 10 * 2];
+    // uint8_t draw_buf[screenWidth * screenHeight / 10 * 2];
+    // uint8_t draw_buf_1[screenWidth * screenHeight / 10 * 2];
+    uint8_t * draw_buf_1;
+    uint8_t * draw_buf_2;
 
     bool SDStatus = true;
     bool WifiStatus = true;

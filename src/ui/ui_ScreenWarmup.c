@@ -19,8 +19,6 @@ lv_obj_t * ui_WarmupPanelTopBar = NULL;
 lv_obj_t * ui_WarmupLabelStatus = NULL;
 lv_obj_t * ui_WarmupBtnGame = NULL;
 lv_obj_t * ui_WarmupLabelGame = NULL;
-lv_obj_t * ui_WarmupBtnTest = NULL;
-lv_obj_t * ui_WarmupLabelTest = NULL;
 lv_obj_t * ui_WarmupArcBoiler = NULL;
 lv_obj_t * ui_WarmupPanelTemp = NULL;
 lv_obj_t * ui_WarmupLabelBoiler = NULL;
@@ -127,7 +125,7 @@ void ui_ScreenWarmup_screen_init(void)
     ui_WarmupLabelWiFi = lv_label_create(ui_WarmupPanelIcons);
     lv_obj_set_width(ui_WarmupLabelWiFi, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_WarmupLabelWiFi, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_WarmupLabelWiFi, 4);
+    lv_obj_set_x(ui_WarmupLabelWiFi, 2);
     lv_obj_set_y(ui_WarmupLabelWiFi, 0);
     lv_obj_set_align(ui_WarmupLabelWiFi, LV_ALIGN_RIGHT_MID);
     lv_label_set_text(ui_WarmupLabelWiFi, "");
@@ -135,7 +133,7 @@ void ui_ScreenWarmup_screen_init(void)
     ui_WarmupLabelSD = lv_label_create(ui_WarmupPanelIcons);
     lv_obj_set_width(ui_WarmupLabelSD, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_WarmupLabelSD, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_WarmupLabelSD, -4);
+    lv_obj_set_x(ui_WarmupLabelSD, -2);
     lv_obj_set_y(ui_WarmupLabelSD, 0);
     lv_obj_set_align(ui_WarmupLabelSD, LV_ALIGN_LEFT_MID);
     lv_label_set_text(ui_WarmupLabelSD, "SD");
@@ -187,7 +185,9 @@ void ui_ScreenWarmup_screen_init(void)
     ui_WarmupBtnGame = lv_button_create(ui_WarmupPanelTopBar);
     lv_obj_set_width(ui_WarmupBtnGame, 80);
     lv_obj_set_height(ui_WarmupBtnGame, 50);
-    lv_obj_set_align(ui_WarmupBtnGame, LV_ALIGN_CENTER);
+    lv_obj_set_x(ui_WarmupBtnGame, 10);
+    lv_obj_set_y(ui_WarmupBtnGame, 0);
+    lv_obj_set_align(ui_WarmupBtnGame, LV_ALIGN_RIGHT_MID);
     lv_obj_add_flag(ui_WarmupBtnGame, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
     lv_obj_remove_flag(ui_WarmupBtnGame, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
 
@@ -197,29 +197,6 @@ void ui_ScreenWarmup_screen_init(void)
     lv_obj_set_align(ui_WarmupLabelGame, LV_ALIGN_CENTER);
     lv_label_set_text(ui_WarmupLabelGame, "GAME");
 
-    ui_WarmupBtnTest = lv_button_create(ui_WarmupPanelTopBar);
-    lv_obj_set_width(ui_WarmupBtnTest, 80);
-    lv_obj_set_height(ui_WarmupBtnTest, 50);
-    lv_obj_set_x(ui_WarmupBtnTest, 10);
-    lv_obj_set_y(ui_WarmupBtnTest, 0);
-    lv_obj_set_align(ui_WarmupBtnTest, LV_ALIGN_RIGHT_MID);
-    lv_obj_add_flag(ui_WarmupBtnTest, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
-    lv_obj_remove_flag(ui_WarmupBtnTest, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
-    lv_obj_set_style_radius(ui_WarmupBtnTest, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_WarmupBtnTest, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_WarmupBtnTest, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    ui_WarmupLabelTest = lv_label_create(ui_WarmupBtnTest);
-    lv_obj_set_width(ui_WarmupLabelTest, LV_SIZE_CONTENT);   /// 1
-    lv_obj_set_height(ui_WarmupLabelTest, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_WarmupLabelTest, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_WarmupLabelTest, "TEST\nMODE");
-    lv_obj_set_style_text_color(ui_WarmupLabelTest, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_opa(ui_WarmupLabelTest, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_letter_space(ui_WarmupLabelTest, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_line_space(ui_WarmupLabelTest, -2, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_align(ui_WarmupLabelTest, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
-
     ui_WarmupArcBoiler = lv_arc_create(ui_WarmupPanelOverlay);
     lv_obj_set_width(ui_WarmupArcBoiler, 190);
     lv_obj_set_height(ui_WarmupArcBoiler, 190);
@@ -227,7 +204,7 @@ void ui_ScreenWarmup_screen_init(void)
     lv_obj_set_y(ui_WarmupArcBoiler, 25);
     lv_obj_set_align(ui_WarmupArcBoiler, LV_ALIGN_CENTER);
     lv_obj_remove_flag(ui_WarmupArcBoiler, LV_OBJ_FLAG_CLICKABLE);      /// Flags
-    lv_arc_set_range(ui_WarmupArcBoiler, 10, 118);
+    lv_arc_set_range(ui_WarmupArcBoiler, 20, 118);
     lv_arc_set_value(ui_WarmupArcBoiler, 50);
     lv_obj_set_style_border_width(ui_WarmupArcBoiler, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_width(ui_WarmupArcBoiler, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -325,8 +302,6 @@ void ui_ScreenWarmup_screen_destroy(void)
     ui_WarmupLabelStatus = NULL;
     ui_WarmupBtnGame = NULL;
     ui_WarmupLabelGame = NULL;
-    ui_WarmupBtnTest = NULL;
-    ui_WarmupLabelTest = NULL;
     ui_WarmupArcBoiler = NULL;
     ui_WarmupPanelTemp = NULL;
     ui_WarmupLabelBoiler = NULL;

@@ -27,8 +27,6 @@ extern lv_obj_t * ui_WarmupPanelTopBar;
 extern lv_obj_t * ui_WarmupLabelStatus;
 extern lv_obj_t * ui_WarmupBtnGame;
 extern lv_obj_t * ui_WarmupLabelGame;
-extern lv_obj_t * ui_WarmupBtnTest;
-extern lv_obj_t * ui_WarmupLabelTest;
 extern lv_obj_t * ui_WarmupArcBoiler;
 extern lv_obj_t * ui_WarmupPanelTemp;
 extern lv_obj_t * ui_WarmupLabelBoiler;

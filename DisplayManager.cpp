@@ -1,15 +1,3 @@
-#include "font/lv_symbol_def.h"
-#include "misc/lv_color.h"
-#include "core/lv_obj.h"
-// #include "core/lv_obj_style_gen.h"
-// #include "core/lv_obj_pos.h"
-// #include "font/lv_font.h"
-// #include "misc/lv_color.h"
-// #include "widgets/label/lv_label.h"
-// #include "core/lv_obj.h"
-// #include "misc/lv_types.h"
-// #include "misc/lv_area.h"
-// #include "layouts/flex/lv_flex.h"
 #include "DisplayManager.h"
 #include "src/ui/ui.h"
 
@@ -27,7 +15,17 @@ void DisplayManager::init() {
 
     disp = lv_display_create(screenWidth, screenHeight);
     lv_display_set_flush_cb(disp, my_disp_flush);
-    lv_display_set_buffers(disp, draw_buf, NULL, sizeof(draw_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
+
+    uint32_t bufferSize = screenWidth * screenHeight / 10 * 2;
+    draw_buf_1 = (uint8_t *)malloc(bufferSize);
+    draw_buf_2 = (uint8_t *)malloc(bufferSize);
+
+    if (draw_buf_1 == NULL || draw_buf_2 == NULL) {
+        Serial.println("FATAL: Out of RAM!");
+        return; 
+    }
+
+    lv_display_set_buffers(disp, draw_buf_1, draw_buf_2, bufferSize, LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_user_data(disp, this);
 
     indev_touchpad = lv_indev_create();
@@ -96,10 +94,10 @@ void DisplayManager::showStartupScreen() {
     lv_obj_add_flag(line_div, LV_OBJ_FLAG_HIDDEN);
 
     // Center the text for the splash screen
-    lv_label_set_text(label_top, "VBM");
+    lv_label_set_text(label_top, "ESPRESSO");
     lv_obj_align(label_top, LV_ALIGN_CENTER, 0, -30);
     
-    lv_label_set_text(label_main, "Domobar");
+    lv_label_set_text(label_main, "MONITOR");
     lv_obj_align(label_main, LV_ALIGN_CENTER, 0, 30);
 
     // Run the LVGL engine to draw the splash screen for 2 seconds
@@ -167,9 +165,12 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
         snprintf(ghStr, sizeof(boilerStr), "%.1f C", estGroupheadTemp);
         lv_label_set_text(ui_WarmupLabelGroupheadTemp, ghStr);
     }
+
     // Thermodynamics Math (Clamp the temperature)
-    float minTemp = 50.0;
-    float maxTemp = 91.0;
+    const float roomTemp = 20.0;
+    const float maxBoilerTemp = 120.0;
+    const float minTemp = 50.0;
+    const float maxTemp = 91.0;
     
     float clampedTemp = estGroupheadTemp;
     if (clampedTemp < minTemp) clampedTemp = minTemp;
@@ -177,6 +178,7 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
 
     // Calculate how "full" the tank should be (0.0 to 1.0)
     float heatPercentage = (clampedTemp - minTemp) / (maxTemp - minTemp);
+    float boilerHeatPercentage = (boilerTemp - roomTemp) / (maxBoilerTemp - roomTemp);
     
     int waveHeight = (screenHeight + 18) / 2; // (screen height + wave height) / 2
 
@@ -198,7 +200,10 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
     // Color Blending (Blue to Red)
     uint8_t mixRatio = (uint8_t)(heatPercentage * 255.0);
     lv_color_t fluidColor = lv_color_mix(lv_color_hex(0xFF0000), lv_color_hex(0x0000FF), mixRatio);
+    mixRatio = (uint8_t)(boilerHeatPercentage * 255.0);
+    lv_color_t arcColor = lv_color_mix(lv_color_hex(0xFF0000), lv_color_hex(0x0000FF), mixRatio);
 
+    lv_obj_set_style_arc_color(ui_WarmupArcBoiler, arcColor, LV_PART_INDICATOR);
     // Apply the exact same tint to both the solid box and the white wave cap
     lv_obj_set_style_bg_color(ui_WarmupPanelWater, fluidColor, 0);
     lv_obj_set_style_image_recolor(ui_WarmupImgWave, fluidColor, 0);
