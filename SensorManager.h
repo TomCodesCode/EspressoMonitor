@@ -6,9 +6,9 @@
 
 // Define HSPI Pins
 #define MAX_CS   5
-#define MAX_DI   23
-#define MAX_DO   19
-#define MAX_CLK  18
+#define MAX_DI   12
+#define MAX_DO   13
+#define MAX_CLK  16
 
 // The value of the reference resistor on the board in ohms.
 // Should be 430 (+- 1%) from factory. Measured ~423.8.
