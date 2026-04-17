@@ -18,7 +18,7 @@ private:
 public:
     bool isReady;
 
-    SDManager();
+    SDManager(SPIClass* sharedSPI);
     void init();
     bool isInitialized();
 

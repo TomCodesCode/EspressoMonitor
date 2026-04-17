@@ -5,10 +5,10 @@
 #include <Adafruit_MAX31865.h>
 
 // Define HSPI Pins
-#define MAX_CS   5
-#define MAX_DI   12
-#define MAX_DO   13
-#define MAX_CLK  16
+#define MAX_CS   25
+// #define MAX_DI   25
+// #define MAX_DO   13
+// #define MAX_CLK  16
 
 // The value of the reference resistor on the board in ohms.
 // Should be 430 (+- 1%) from factory. Measured ~423.8.
@@ -19,13 +19,14 @@
 class SensorManager {
 private:
     Adafruit_MAX31865* thermo; // Pointer to the library object
+    SPIClass* maxSPI; // Shared bus with SD
     unsigned long lastReadTime;
     float currentTemp;
     bool isMeasuring; 
     unsigned long measureStartTime;
 
 public:
-    SensorManager();
+    SensorManager(SPIClass* sharedSPI);
     void init();
     void update();
     float getTemp();

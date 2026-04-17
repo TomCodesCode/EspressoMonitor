@@ -1,15 +1,15 @@
 #include "SDManager.h"
 // testing.
 // TODO: CSV files for server.
-SDManager::SDManager() {
-    sdSPI = new SPIClass(HSPI);
+SDManager::SDManager(SPIClass* sharedSPI) {
+    sdSPI = sharedSPI;
     isReady = false;
 }
 
 void SDManager::init() {
     Serial.println("Initializing SD Card...");
 
-    sdSPI->begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+    // sdSPI->begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 
     // Hand bus to SD library
     if (!SD.begin(SD_CS, *sdSPI)) {

@@ -229,7 +229,7 @@ void DisplayManager::animateWarmupWave() {
     
     lv_anim_set_values(&a, 80, -80); 
     
-    lv_anim_set_duration(&a, 8000); 
+    lv_anim_set_duration(&a, 4000); 
     
     // constant speed
     lv_anim_set_path_cb(&a, lv_anim_path_linear); 

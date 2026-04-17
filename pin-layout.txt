@@ -1,0 +1,40 @@
+pins (30 pin version):
+*if nothing is mentioned- pin is unused.
+*some pins have multiple assigned I/Os.
+*GND, 3.3v and VIN connections will not be mentioned in this file. 
+
+-LEFT-
+
+EN -
+VP -
+VN -
+D34-SCT030 current sensor
+D35-
+D32-TFT_TOUCH_CS
+D33-TFT_RST
+D25-MAX31865 SDI
+D26-SD_CS
+D27-TFT_DC
+D14-TFT_CS
+D12-
+D13-MAX31865 SDO
+GND-
+VIN-
+
+-RIGHT-
+
+3V3-
+GND-
+D15-
+D2 -
+D4 -passive buzzer
+RX2-MAX31865 CLK
+TX2-SD MOSI
+D5 -MAX31865 CS
+D18-TFT_SCLK + TFT_TOUCH_CLK
+D19-TFT_MISO + TFT_TOUCH_DO
+D21-SD CLK
+RX0-
+TX0-
+D22-SD MISO
+D23-TFT_MOSI + TFT_TOUCH_DIN

@@ -13,8 +13,9 @@ const float initialGroupheadTemp = 50.0; // assumed grouphead temp when boiler i
 // so we calculate for tau: 91 = 105 - (105 - 50)*e^(-812/tau) -> tau = ~592.
 const float tau = 592.0;
 
-SensorManager::SensorManager() {
-    thermo = new Adafruit_MAX31865(MAX_CS);
+SensorManager::SensorManager(SPIClass* sharedSPI) {
+    maxSPI = sharedSPI;
+    thermo = new Adafruit_MAX31865(MAX_CS, maxSPI);
     lastReadTime = 0;
     currentTemp = 0.0;
     isMeasuring = false;
@@ -24,6 +25,8 @@ SensorManager::SensorManager() {
 void SensorManager::init() {
     pinMode(MAX_CS, OUTPUT);
     digitalWrite(MAX_CS, HIGH); // Deselect chip
+
+    // maxSPI->begin(21, 22, 17, MAX_CS);
 
     // ignores the startup noise
     Serial.println("Initializing Sensor in Robust Mode...");

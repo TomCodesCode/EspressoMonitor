@@ -1,3 +1,5 @@
+#include "esp32-hal.h"
+#include "portmacro.h"
 #include "CurrentManager.h"
 #include <Preferences.h>
 
@@ -106,6 +108,8 @@ float CurrentManager::readStrength() {
         long shifted = raw - zeroPoint; 
         sumSquared += (shifted * shifted);
         samples++;
+
+        delay(1);
     }
 
     float meanSquare = (float)sumSquared / samples;
