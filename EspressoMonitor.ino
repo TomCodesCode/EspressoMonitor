@@ -63,7 +63,7 @@ void setup() {
     display.showStartupScreen();
     display.loadScreen(WARMUP);
     sharedSPI.begin(21, 22, 17, -1);
-    sensor.init(); // 3 wire mode
+    // sensor.init(); // 3 wire mode
     pumpSensor.init(); // IMPORTANT: Ensure pump is OFF when you turn the machine on! (good practice regardless)
     sdCard.init();
 
@@ -85,11 +85,11 @@ void setup() {
 
 void coreZeroWorkerTask(void * parameter) {
     for(;;) {
-        sensor.update(); 
-        sharedBoilerTemp = sensor.getTemp();
+        // sensor.update(); 
+        // sharedBoilerTemp = sensor.getTemp();
         
         unsigned long boilerReadyTime = isBoilerReady ? millis() - heatSoakStartTime : 0;
-        sharedGroupheadTemp = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
+        // sharedGroupheadTemp = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
         
         // sharedPumpRunning = pumpSensor.isPumpOn();
         sharedPumpRunning = false;
