@@ -5,7 +5,7 @@
 #include <SPI.h>
 
 // VBM Domobar Junior is an E61 machine, so after the boiler reaches its target temp, the brass needs to heat up the grouphead (takes 11 - 15 minutes usually)
-const float targetGroupheadTemp = 91.0 + 14.0; // 91c target + 14 to account for calculation asymptote
+const float targetGroupheadTemp = 90.0 + 14.0; // 90c target + 14 to account for calculation asymptote
 const float initialGroupheadTemp = 50.0; // assumed grouphead temp when boiler is ready
 
 // The "sluggishness" factor of the brass. The calculation used Newton's Law of Heating to estimate grouphead temp.
@@ -61,10 +61,11 @@ void SensorManager::update() {
             } else {
                 // CALIBRATION
                 // 0.385ohms per 1C. 100ohms at 0C. Redundant 3WIRE mode .
-                float calibratedTemp = temp - 0.25; // Account for cable length + plugs resistance.
+                // float calibratedTemp = temp - 0.25; // Account for cable length + plugs resistance.
+                // float calibratedTemp = temp;
                 
-                Serial.print("Stable Temp: "); Serial.println(calibratedTemp);
-                currentTemp = calibratedTemp;
+                Serial.print("Stable Temp: "); Serial.println(temp);
+                currentTemp = temp;
                 
                 thermo->enableBias(false);
                 isMeasuring = false;

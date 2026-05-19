@@ -17,8 +17,8 @@
 // #define BUTTON_PIN  15  // Pin for the button (InputManager)
 #define BUZZER_PIN 4    // Pin for the passive buzzer. used to transmit the sounds.
 // (use ~120. at the moment- the values change for testing)
-#define BOILER_BREW_TEMP 118    // default desired brewing start temp (of the boiler- the grouphead will always be much cooler)
-#define GROUPHEAD_BREW_TEMP 91 // desired grouphead brew temp (will result in actual textbook 93-97 C brewing temp)
+#define BOILER_BREW_TEMP 117    // default desired brewing start temp (of the boiler- the grouphead will always be much cooler)
+#define GROUPHEAD_BREW_TEMP 90 // desired grouphead brew temp (will result in actual textbook 93-97 C brewing temp)
 #define HEAT_SOAK_TIME 812000 // time needed for the E61 grouphead to heat up AFTER the boiler is at temp.
 
 // SYSTEM
@@ -63,7 +63,7 @@ void setup() {
     display.showStartupScreen();
     display.loadScreen(WARMUP);
     sharedSPI.begin(21, 22, 17, -1);
-    // sensor.init(); // 3 wire mode
+    sensor.init(); // 3 wire mode
     pumpSensor.init(); // IMPORTANT: Ensure pump is OFF when you turn the machine on! (good practice regardless)
     sdCard.init();
 
@@ -84,12 +84,13 @@ void setup() {
 }
 
 void coreZeroWorkerTask(void * parameter) {
+    unsigned long prevMeasure = 0;
     for(;;) {
-        // sensor.update(); 
-        // sharedBoilerTemp = sensor.getTemp();
+        sensor.update(); 
+        sharedBoilerTemp = sensor.getTemp();
         
         unsigned long boilerReadyTime = isBoilerReady ? millis() - heatSoakStartTime : 0;
-        // sharedGroupheadTemp = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
+        sharedGroupheadTemp = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
         
         // sharedPumpRunning = pumpSensor.isPumpOn();
         sharedPumpRunning = false;
