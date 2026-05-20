@@ -26,6 +26,27 @@ const Note DOOM_THEME[] = {
     {REST, 120},    {NOTE_C4, 300}, {NOTE_B3, 150}, {NOTE_G3, 150} // The Turnaround
 };
 
+const Note HELLDIVERS_THEME[] = {
+    // === BAR 1 (The iconic intro: "Da-da-da DAAAA") ===
+    {NOTE_DS4, 150}, {REST, 1}, {NOTE_D4, 150}, {REST, 1}, {NOTE_DS4, 150}, {REST, 1},
+    {NOTE_E3, 1500}, {REST, 200},
+    
+    // === BAR 2 (The echo: "Da-da DAAAA") ===
+    {NOTE_C4, 500}, {REST, 100},
+    {NOTE_D4, 2500}, {REST, 200},
+
+    // === BAR 3 (The climb: "Da-da-da DAAA... DAAA...") ===
+    {NOTE_DS4, 200}, {NOTE_D4, 200}, {NOTE_E3, 200}, 
+    {NOTE_DS4, 1500},
+
+    {NOTE_G3, 200}, {NOTE_C4, 200}, {NOTE_D4, 200}, {NOTE_F4, 200},
+    {REST, 150}, {NOTE_C4, 150}, {NOTE_G4, 2000}
+
+    // === BAR 4 (The soaring climax: "...DAAA... DAAA... DAAAAAAA") ===
+    // {NOTE_G4, 500}, {NOTE_C5, 500}, 
+    // {NOTE_D5, 1600}, {REST, 500}
+};
+
 SoundManager::SoundManager(int pinNumber) : pin(pinNumber) {
     isPlaying = false;
     noteIndex = 0;
@@ -52,6 +73,10 @@ void SoundManager::playMelody(const Note* melody, int length) {
 
 void SoundManager::playDoom() {
     playMelody(DOOM_THEME, sizeof(DOOM_THEME) / sizeof(Note));
+}
+
+void SoundManager::playHelldivers() {
+    playMelody(HELLDIVERS_THEME, sizeof(HELLDIVERS_THEME) / sizeof(Note));
 }
 
 void SoundManager::playStop() {

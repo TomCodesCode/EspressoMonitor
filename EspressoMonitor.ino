@@ -159,7 +159,8 @@ void loop() {
                     currentState = READY;
                     isBoilerReady = false;
                     display.loadScreen(READY);
-                    sound.playDoom();
+                    // sound.playDoom();
+                    sound.playHelldivers();
                     readyTime = currentTime;
                     Serial.println("State: READY");
                 }
