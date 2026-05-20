@@ -181,6 +181,8 @@ void ui_ScreenWarmup_screen_init(void)
     ui_WarmupPanelTopBar = lv_obj_create(ui_WarmupPanelOverlay);
     lv_obj_set_width(ui_WarmupPanelTopBar, lv_pct(100));
     lv_obj_set_height(ui_WarmupPanelTopBar, lv_pct(15));
+    lv_obj_set_x(ui_WarmupPanelTopBar, 0);
+    lv_obj_set_y(ui_WarmupPanelTopBar, -10);
     lv_obj_set_align(ui_WarmupPanelTopBar, LV_ALIGN_TOP_MID);
     lv_obj_remove_flag(ui_WarmupPanelTopBar, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_bg_color(ui_WarmupPanelTopBar, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);

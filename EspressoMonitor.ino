@@ -207,6 +207,14 @@ void loop() {
                 lastUpdateT = millis();
                 mockTempGH += 0.5;
             }
+            if (timer.getSeconds() > 65){
+                mockTempBoiler = 108.0;
+                timer.reset();
+                timer.start();
+                currentState = BREWING;
+                display.loadScreen(BREWING);
+                Serial.println("State: BREWING");
+            }
             /*
             display.updateReadyData(sharedBoilerTemp, sharedGroupheadTemp);
             // ADD LATER HERE: notify on phone / ip.
@@ -230,7 +238,11 @@ void loop() {
 
         // CASE: BREWING
         // Pump is running; Timer is counting.
-        case BREWING:
+        case BREWING:{
+            /*TESTING*/
+            timer.start();
+            display.updateBrewData(timer.getFormattedTime(TimerManager::SECONDS), mockTempBoiler);
+            /*
             display.updateBrewData(timer.getSeconds(), sharedBoilerTemp);
 
             // Transition -> DONE (Pump Stopped)
@@ -243,7 +255,9 @@ void loop() {
                 display.loadScreen(DONE);
                 Serial.println("State: DONE");
             }
+            */
             break;
+        }
 
         // CASE: DONE
         // Shot finished. Show the final time for a few seconds.

@@ -177,9 +177,9 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
 
     // Thermodynamics Math (Clamp the temperature)
     const float roomTemp = 20.0;
-    const float maxBoilerTemp = 120.0;
+    const float maxBoilerTemp = 118.0;
     const float minTemp = 50.0;
-    const float maxTemp = 91.0;
+    const float maxTemp = 90.0;
     
     float clampedTemp = estGroupheadTemp;
     if (clampedTemp < minTemp) clampedTemp = minTemp;

@@ -35,7 +35,7 @@ void ui_ScreenReady_screen_init(void)
                        LV_OBJ_FLAG_SCROLL_MOMENTUM);    /// Flags
 
     ui_ReadyImageBg = lv_image_create(ui_ScreenReady);
-    lv_image_set_src(ui_ReadyImageBg, &ui_img_fieldwarcartoon480240blurgray8bit_png);
+    lv_image_set_src(ui_ReadyImageBg, &ui_img_fieldwarcartoon480240blur_reduced_png);
     lv_obj_set_width(ui_ReadyImageBg, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_ReadyImageBg, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_ReadyImageBg, -50);
@@ -142,6 +142,8 @@ void ui_ScreenReady_screen_init(void)
     ui_ReadyPanelTopBar = lv_obj_create(ui_ReadyPanelOverlay);
     lv_obj_set_width(ui_ReadyPanelTopBar, lv_pct(100));
     lv_obj_set_height(ui_ReadyPanelTopBar, lv_pct(15));
+    lv_obj_set_x(ui_ReadyPanelTopBar, 0);
+    lv_obj_set_y(ui_ReadyPanelTopBar, -10);
     lv_obj_set_align(ui_ReadyPanelTopBar, LV_ALIGN_TOP_MID);
     lv_obj_remove_flag(ui_ReadyPanelTopBar, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_radius(ui_ReadyPanelTopBar, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -173,12 +175,12 @@ void ui_ScreenReady_screen_init(void)
     lv_obj_remove_flag(ui_ReadyLabelFlush,
                        LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM |
                        LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
-    lv_obj_set_style_text_color(ui_ReadyLabelFlush, lv_color_hex(0xFF0000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui_ReadyLabelFlush, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_ReadyLabelFlush, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_ReadyLabelFlush, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_ReadyLabelFlush, &lv_font_montserrat_14, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui_ReadyLabelFlush, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_ReadyLabelFlush, lv_color_hex(0xA7A2CF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_ReadyLabelFlush, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_ReadyLabelFlush, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ReadyPanelTime = lv_obj_create(ui_ReadyPanelOverlay);

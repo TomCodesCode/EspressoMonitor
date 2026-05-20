@@ -28,6 +28,8 @@ extern "C" {
 ///////////////////// SCREENS ////////////////////
 #include "ui_ScreenWarmup.h"
 #include "ui_ScreenReady.h"
+#include "ui_ScreenBrew.h"
+#include "ui_ScreenDone.h"
 
 ///////////////////// VARIABLES ////////////////////
 
@@ -36,7 +38,9 @@ extern lv_obj_t * ui____initial_actions0;
 
 // IMAGES AND IMAGE SETS
 LV_IMG_DECLARE(ui_img_487075786);    // assets/blue-water-WHITE_480FX.png
-LV_IMG_DECLARE(ui_img_fieldwarcartoon480240blurgray8bit_png);    // assets/fieldwarcartoon480240blurgray8bit.png
+LV_IMG_DECLARE(ui_img_fieldwarcartoon480240blur_reduced_png);    // assets/fieldwarcartoon480240blur_reduced.png
+LV_IMG_DECLARE(ui_img_coffeebean20_png);    // assets/coffeebean20.png
+LV_IMG_DECLARE(ui_img_character_img5057_png);    // assets/character_img5057.png
 
 // UI INIT
 void ui_init(void);
