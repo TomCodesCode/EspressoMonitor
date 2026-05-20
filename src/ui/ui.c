@@ -31,6 +31,7 @@ void ui_init(void)
                                                true, LV_FONT_DEFAULT);
     lv_disp_set_theme(dispp, theme);
     ui_ScreenWarmup_screen_init();
+    ui_ScreenReady_screen_init();
     ui____initial_actions0 = lv_obj_create(NULL);
     lv_disp_load_scr(ui_ScreenWarmup);
 }
@@ -38,4 +39,5 @@ void ui_init(void)
 void ui_destroy(void)
 {
     ui_ScreenWarmup_screen_destroy();
+    ui_ScreenReady_screen_destroy();
 }

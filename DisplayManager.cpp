@@ -1,3 +1,4 @@
+#include "core/lv_obj.h"
 #include "DisplayManager.h"
 #include "src/ui/ui.h"
 
@@ -38,8 +39,14 @@ void DisplayManager::init() {
 
     lv_label_set_text(ui_WarmupLabelSD, LV_SYMBOL_SD_CARD);
     lv_label_set_text(ui_WarmupLabelWiFi, LV_SYMBOL_WIFI);
+    lv_label_set_text(ui_ReadyLabelSD, LV_SYMBOL_SD_CARD);
+    lv_label_set_text(ui_ReadyLabelWiFi, LV_SYMBOL_WIFI);
     
     animateWarmupWave();
+
+    // Ready screen temp toggle button init
+    lv_obj_add_event_cb(ui_ReadyButtonTemp, temp_btn_event_cb, LV_EVENT_CLICKED, this);
+    lv_obj_add_flag(ui_ReadyLabelFlush, LV_OBJ_FLAG_HIDDEN); // No flush recommendation at startup on Ready screen (to avoid 1st frame flicker)
 
     Serial.println("LVGL v9 Display Manager Initialized.");
 }
@@ -139,7 +146,7 @@ void DisplayManager::my_touchpad_read(lv_indev_t * indev, lv_indev_data_t * data
 void DisplayManager::loadScreen(SystemState state) {
     switch(state) {
         case WARMUP: lv_screen_load(ui_ScreenWarmup); break;
-        // case READY:  lv_screen_load(screen_ready); break;
+        case READY:  lv_screen_load(ui_ScreenReady); break;
         // case BREWING: 
         //    lv_screen_load(screen_brewing); 
         //    break;
@@ -213,7 +220,25 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
     lv_obj_set_style_image_recolor(ui_WarmupImgWave, fluidColor, 0);
 }
 
-void DisplayManager::updateReadyData(float temp) {}
+void DisplayManager::updateReadyData(float boilerTemp, float estGroupheadTemp, const char* minutes, const char* seconds) {
+    char tempStr[16];
+    
+    if (showingBoilerTemp) {
+        snprintf(tempStr, sizeof(tempStr), "%.1f C", boilerTemp);
+    } else {
+        snprintf(tempStr, sizeof(tempStr), "%.1f C", estGroupheadTemp);
+    }
+
+    if (estGroupheadTemp <= 91){
+        lv_obj_add_flag(ui_ReadyLabelFlush, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_remove_flag(ui_ReadyLabelFlush, LV_OBJ_FLAG_HIDDEN);
+    }
+    
+    lv_label_set_text(ui_ReadyLabelTimeSeconds, seconds);
+    lv_label_set_text(ui_ReadyLabelTimeMinutes, minutes);
+    lv_label_set_text(ui_ReadyLabelTemp, tempStr);
+}
 
 void DisplayManager::updateBrewData(float timer, float temp) {}
 
@@ -241,12 +266,21 @@ void DisplayManager::animateWarmupWave() {
     lv_anim_start(&a);
 }
 
+void DisplayManager::temp_btn_event_cb(lv_event_t * e) {
+    // Retrieve the DisplayManager instance
+    DisplayManager* manager = (DisplayManager*)lv_event_get_user_data(e);
+    
+    // Toggle the state
+    manager->showingBoilerTemp = !manager->showingBoilerTemp;
+}
+
 void DisplayManager::setSDState(bool isConnected) {
     this->SDStatus = isConnected;
 
     lv_color_t color = isConnected ? lv_color_hex(0xFFFFFF) : lv_color_hex(0xFF0000);
 
     lv_obj_set_style_text_color(ui_WarmupLabelSD, color, 0);
+    lv_obj_set_style_text_color(ui_ReadyLabelSD, color, 0);
 }
 
 void DisplayManager::setWifiState(bool isConnected) {
@@ -255,4 +289,5 @@ void DisplayManager::setWifiState(bool isConnected) {
     lv_color_t color = isConnected ? lv_color_hex(0xFFFFFF) : lv_color_hex(0xFF0000);
 
     lv_obj_set_style_text_color(ui_WarmupLabelWiFi, color, 0);
+    lv_obj_set_style_text_color(ui_ReadyLabelWiFi, color, 0);
 }

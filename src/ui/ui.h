@@ -27,6 +27,7 @@ extern "C" {
 
 ///////////////////// SCREENS ////////////////////
 #include "ui_ScreenWarmup.h"
+#include "ui_ScreenReady.h"
 
 ///////////////////// VARIABLES ////////////////////
 
@@ -35,6 +36,7 @@ extern lv_obj_t * ui____initial_actions0;
 
 // IMAGES AND IMAGE SETS
 LV_IMG_DECLARE(ui_img_487075786);    // assets/blue-water-WHITE_480FX.png
+LV_IMG_DECLARE(ui_img_fieldwarcartoon480240blurgray8bit_png);    // assets/fieldwarcartoon480240blurgray8bit.png
 
 // UI INIT
 void ui_init(void);

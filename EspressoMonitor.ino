@@ -154,12 +154,18 @@ void loop() {
                         mockTempGH += 0.5;
                 }
                 if (mockTempGH > 91.0) {
-                    mockTempBoiler = 25.0;
-                    mockTempGH = 0.0;
+                    mockTempGH = 88;
+                    timer.start();
+                    currentState = READY;
+                    isBoilerReady = false;
+                    display.loadScreen(READY);
+                    sound.playDoom();
+                    readyTime = currentTime;
+                    Serial.println("State: READY");
                 }
             } // END OF TESTING
-            /*
             
+            /*
             unsigned long boilerReadyTime = isBoilerReady ? currentTime - heatSoakStartTime : 0;
             display.updateWarmupData(sensor.getTemp(), sensor.getEstimatedGroupheadTemp(boilerReadyTime));
 
@@ -191,8 +197,17 @@ void loop() {
 
         // CASE: READY
         // Machine is hot. Waiting for a brew.
-        case READY:
-            display.updateReadyData(sharedBoilerTemp);
+        case READY:{
+
+            /*TESTING*/
+            auto [minutes, seconds] = timer.getFormattedTime(TimerManager::MINUTES);
+            display.updateReadyData(mockTempBoiler, mockTempGH, minutes, seconds);
+            if (millis() - lastUpdateT > 1000){
+                lastUpdateT = millis();
+                mockTempGH += 0.5;
+            }
+            /*
+            display.updateReadyData(sharedBoilerTemp, sharedGroupheadTemp);
             // ADD LATER HERE: notify on phone / ip.
             // Transition -> BREWING
             if (sharedPumpRunning) {
@@ -207,8 +222,10 @@ void loop() {
                 currentState = WARMUP;
                 display.loadScreen(WARMUP);
                 Serial.println("WARMUP: Temp dropped while waiting");
-            }
+                
+            }*/
             break;
+        }
 
         // CASE: BREWING
         // Pump is running; Timer is counting.

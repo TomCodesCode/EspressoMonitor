@@ -31,6 +31,10 @@ private:
     static void my_disp_flush(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map);
     void flush_impl(lv_display_t * disp, const lv_area_t * area, uint8_t * px_map);
 
+    // Ready screen utils
+    bool showingBoilerTemp = false; // Default to Grouphead temp
+    static void temp_btn_event_cb(lv_event_t * e);
+
     // helpers
     void animateWarmupWave();
 
@@ -43,9 +47,9 @@ public:
     
     void showStartupScreen();
 
-    void loadScreen(SystemState state); 
+    void loadScreen(SystemState state);
     void updateWarmupData(float boilerTemp, float estGroupheadTemp);
-    void updateReadyData(float temp);
+    void updateReadyData(float boilerTemp, float estGroupheadTemp, const char * minutes, const char * seconds);
     void updateBrewData(float timer, float temp);
     void updateDoneData(float timer, float temp);
 

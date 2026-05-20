@@ -2,6 +2,7 @@
 #define TIMER_MANAGER_H
 
 #include <Arduino.h>
+#include <utility>
 
 class TimerManager {
 private:
@@ -12,6 +13,8 @@ private:
 public:
     TimerManager();
 
+    enum TimeFormat{SECONDS, MINUTES};
+
     void start();
     void stop();
     void reset();
@@ -20,7 +23,7 @@ public:
     
     float getSeconds();
 
-    char* getFormattedTime();
+    std::pair<const char*, const char*> getFormattedTime(TimeFormat time_format);
 };
 
 #endif
