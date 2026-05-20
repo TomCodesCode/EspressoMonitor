@@ -35,6 +35,12 @@ private:
     bool showingBoilerTemp = false; // Default to Grouphead temp
     static void temp_btn_event_cb(lv_event_t * e);
 
+    // Auto scale chart variables
+    static const int MAX_BREW_TIME = 120; // 2 minutes max
+    int brewTemperatures[MAX_BREW_TIME];
+    int currentChartPoint = 0;
+    unsigned long lastChartUpdate = 0;
+
     // helpers
     void animateWarmupWave();
 

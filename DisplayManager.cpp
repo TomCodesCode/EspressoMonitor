@@ -41,6 +41,10 @@ void DisplayManager::init() {
     lv_label_set_text(ui_WarmupLabelWiFi, LV_SYMBOL_WIFI);
     lv_label_set_text(ui_ReadyLabelSD, LV_SYMBOL_SD_CARD);
     lv_label_set_text(ui_ReadyLabelWiFi, LV_SYMBOL_WIFI);
+    lv_label_set_text(ui_BrewLabelSd, LV_SYMBOL_SD_CARD);
+    lv_label_set_text(ui_BrewLabelWiFi, LV_SYMBOL_WIFI);
+    lv_label_set_text(ui_DoneLabelSD, LV_SYMBOL_SD_CARD);
+    lv_label_set_text(ui_DoneLabelWiFi, LV_SYMBOL_WIFI);
     
     animateWarmupWave();
 
@@ -145,12 +149,34 @@ void DisplayManager::my_touchpad_read(lv_indev_t * indev, lv_indev_data_t * data
 
 void DisplayManager::loadScreen(SystemState state) {
     switch(state) {
-        case WARMUP: lv_screen_load(ui_ScreenWarmup); break;
-        case READY:  lv_screen_load(ui_ScreenReady); break;
-        // case BREWING: 
-        //    lv_screen_load(screen_brewing); 
-        //    break;
-        // case DONE:   lv_screen_load(screen_done); break;
+        case WARMUP:  lv_screen_load(ui_ScreenWarmup); break;
+        case READY:   lv_screen_load(ui_ScreenReady);  break;
+        case BREWING:{
+            lv_screen_load(ui_ScreenBrew);
+            currentChartPoint = 0;
+            lastChartUpdate = millis(); 
+            lv_chart_set_point_count(ui_BrewChart, 2);
+            break;
+        } 
+        case DONE:{
+            lv_screen_load(ui_ScreenDone);
+            
+            // Populate the chart once
+            int displayPoints = (currentChartPoint < 2) ? 2 : currentChartPoint;
+            lv_chart_set_point_count(ui_DoneChart, displayPoints);
+            lv_chart_series_t * done_ser = lv_chart_get_series_next(ui_DoneChart, NULL);
+
+            for(int i = 0; i < currentChartPoint; i++) {
+                lv_chart_set_value_by_id(ui_DoneChart, done_ser, i, brewTemperatures[i]);
+            }
+            
+            // Edge case protection for a 1-second aborted shot
+            if (currentChartPoint == 1) {
+                lv_chart_set_value_by_id(ui_DoneChart, done_ser, 1, brewTemperatures[0]);
+            }
+
+            break;
+        }
     }
 }
 
@@ -281,6 +307,8 @@ void DisplayManager::setSDState(bool isConnected) {
 
     lv_obj_set_style_text_color(ui_WarmupLabelSD, color, 0);
     lv_obj_set_style_text_color(ui_ReadyLabelSD, color, 0);
+    lv_obj_set_style_text_color(ui_BrewLabelSD, color, 0);
+    lv_obj_set_style_text_color(ui_DoneLabelSD, color, 0);
 }
 
 void DisplayManager::setWifiState(bool isConnected) {
@@ -290,4 +318,6 @@ void DisplayManager::setWifiState(bool isConnected) {
 
     lv_obj_set_style_text_color(ui_WarmupLabelWiFi, color, 0);
     lv_obj_set_style_text_color(ui_ReadyLabelWiFi, color, 0);
+    lv_obj_set_style_text_color(ui_BrewLabelWiFi, color, 0);
+    lv_obj_set_style_text_color(ui_DoneLabelWiFi, color, 0);
 }
