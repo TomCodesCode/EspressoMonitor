@@ -266,8 +266,9 @@ void ui_ScreenBrew_screen_init(void)
     lv_obj_add_flag(ui_BrewChart, LV_OBJ_FLAG_OVERFLOW_VISIBLE);      //make scales visible - Should it be forced to True?
     //lv_obj_remove_flag( ui_BrewChart, LV_OBJ_FLAG_SCROLLABLE );    //no chart-zoom in LVGL9 - Shouldn't it be forced to False?
     lv_chart_set_type(ui_BrewChart, LV_CHART_TYPE_LINE);
+    lv_chart_set_point_count(ui_BrewChart, 100);
     lv_chart_set_axis_range(ui_BrewChart, LV_CHART_AXIS_PRIMARY_Y, 90, 120);
-    lv_chart_set_div_line_count(ui_BrewChart, 5, 10);
+    lv_chart_set_div_line_count(ui_BrewChart, 8, 30);
     lv_obj_set_style_radius(ui_BrewChart, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_BrewChart, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_BrewChart, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -321,10 +322,6 @@ void ui_ScreenBrew_screen_init(void)
     lv_scale_set_total_tick_count(ui_BrewChart_Yaxis2, (0 > 0 ? 0 - 1 : 0) * 0 + 1);
     lv_scale_set_major_tick_every(ui_BrewChart_Yaxis2, 0 >= 1 ? 0 : 1);
     lv_scale_set_label_show(ui_BrewChart_Yaxis2, false);
-    lv_chart_series_t * ui_BrewChart_series_1 = lv_chart_add_series(ui_BrewChart, lv_color_hex(0xB30000),
-                                                                    LV_CHART_AXIS_PRIMARY_Y);
-    static lv_coord_t ui_BrewChart_series_1_array[] = { 117, 115, 114, 110, 109, 105, 104, 105, 105, 95 };
-    lv_chart_set_series_ext_y_array(ui_BrewChart, ui_BrewChart_series_1, ui_BrewChart_series_1_array);
 
     lv_obj_set_style_line_color(ui_BrewChart, lv_color_hex(0xFF0000), LV_PART_ITEMS | LV_STATE_DEFAULT);
     lv_obj_set_style_line_opa(ui_BrewChart, 255, LV_PART_ITEMS | LV_STATE_DEFAULT);

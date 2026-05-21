@@ -1,3 +1,4 @@
+#include "widgets/label/lv_label.h"
 #include "core/lv_obj.h"
 #include "DisplayManager.h"
 #include "src/ui/ui.h"
@@ -37,11 +38,14 @@ void DisplayManager::init() {
     // BOOT THE SQUARELINE UI
     ui_init();
 
+    brew_ser = lv_chart_add_series(ui_BrewChart, lv_color_hex(0xFF0000), LV_CHART_AXIS_PRIMARY_Y);
+    done_ser = lv_chart_add_series(ui_DoneChart, lv_color_hex(0xFF0000), LV_CHART_AXIS_PRIMARY_Y);
+
     lv_label_set_text(ui_WarmupLabelSD, LV_SYMBOL_SD_CARD);
     lv_label_set_text(ui_WarmupLabelWiFi, LV_SYMBOL_WIFI);
     lv_label_set_text(ui_ReadyLabelSD, LV_SYMBOL_SD_CARD);
     lv_label_set_text(ui_ReadyLabelWiFi, LV_SYMBOL_WIFI);
-    lv_label_set_text(ui_BrewLabelSd, LV_SYMBOL_SD_CARD);
+    lv_label_set_text(ui_BrewLabelSD, LV_SYMBOL_SD_CARD);
     lv_label_set_text(ui_BrewLabelWiFi, LV_SYMBOL_WIFI);
     lv_label_set_text(ui_DoneLabelSD, LV_SYMBOL_SD_CARD);
     lv_label_set_text(ui_DoneLabelWiFi, LV_SYMBOL_WIFI);
@@ -51,6 +55,9 @@ void DisplayManager::init() {
     // Ready screen temp toggle button init
     lv_obj_add_event_cb(ui_ReadyButtonTemp, temp_btn_event_cb, LV_EVENT_CLICKED, this);
     lv_obj_add_flag(ui_ReadyLabelFlush, LV_OBJ_FLAG_HIDDEN); // No flush recommendation at startup on Ready screen (to avoid 1st frame flicker)
+
+    // Done screen
+    lv_obj_add_flag(ui_DoneLabelUploading, LV_OBJ_FLAG_HIDDEN);
 
     Serial.println("LVGL v9 Display Manager Initialized.");
 }
@@ -155,26 +162,27 @@ void DisplayManager::loadScreen(SystemState state) {
             lv_screen_load(ui_ScreenBrew);
             currentChartPoint = 0;
             lastChartUpdate = millis(); 
-            lv_chart_set_point_count(ui_BrewChart, 2);
+
+            lv_chart_set_point_count(ui_BrewChart, 300); // 30 seconds
+            lv_chart_set_all_value(ui_BrewChart, brew_ser, LV_CHART_POINT_NONE);
             break;
         } 
         case DONE:{
             lv_screen_load(ui_ScreenDone);
             
-            // Populate the chart once
             int displayPoints = (currentChartPoint < 2) ? 2 : currentChartPoint;
             lv_chart_set_point_count(ui_DoneChart, displayPoints);
-            lv_chart_series_t * done_ser = lv_chart_get_series_next(ui_DoneChart, NULL);
-
-            for(int i = 0; i < currentChartPoint; i++) {
-                lv_chart_set_value_by_id(ui_DoneChart, done_ser, i, brewTemperatures[i]);
-            }
             
-            // Edge case protection for a 1-second aborted shot
-            if (currentChartPoint == 1) {
-                lv_chart_set_value_by_id(ui_DoneChart, done_ser, 1, brewTemperatures[0]);
+            // Crash Protection
+            if (done_ser != NULL) {
+                // Wipe the chart clean of junk memory
+                lv_chart_set_all_value(ui_DoneChart, done_ser, LV_CHART_POINT_NONE);
+                
+                // Safely shift the entire history into the chart
+                for(int i = 0; i < currentChartPoint; i++) {
+                    lv_chart_set_next_value(ui_DoneChart, done_ser, (int)brewTemperatures[i]);
+                }
             }
-
             break;
         }
     }
@@ -203,8 +211,8 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
 
     // Thermodynamics Math (Clamp the temperature)
     const float roomTemp = 20.0;
-    const float maxBoilerTemp = 118.0;
-    const float minTemp = 50.0;
+    const float maxBoilerTemp = 117.0;
+    const float minTemp = 40.0;
     const float maxTemp = 90.0;
     
     float clampedTemp = estGroupheadTemp;
@@ -266,9 +274,39 @@ void DisplayManager::updateReadyData(float boilerTemp, float estGroupheadTemp, c
     lv_label_set_text(ui_ReadyLabelTemp, tempStr);
 }
 
-void DisplayManager::updateBrewData(float timer, float temp) {}
+void DisplayManager::updateBrewData(const char* seconds, const char* tenths, float temp) {
+    lv_label_set_text(ui_BrewLabelTimeTenths, tenths);
+    lv_label_set_text(ui_BrewLabelTimeSeconds, seconds);
+    char boilerStr[16];
+    snprintf(boilerStr, sizeof(boilerStr), "%.1f C", temp);
+    lv_label_set_text(ui_BrewLabelTemp, boilerStr);
 
-void DisplayManager::updateDoneData(float timer, float temp) {}
+    // SYNCHRONIZED LOGGING: Only fire when the 'tenths' timer rolls over
+    static char lastTenth = 'X'; 
+    if (tenths[0] != lastTenth) {
+        lastTenth = tenths[0];
+
+        // Save to our array
+        if (currentChartPoint < MAX_BREW_TIME) {
+            brewTemperatures[currentChartPoint] = temp;
+            currentChartPoint++;
+        }
+
+        // Shift the chart safely
+        if (brew_ser != NULL) { 
+            lv_chart_set_next_value(ui_BrewChart, brew_ser, (int)temp);
+        }
+    }
+}
+
+void DisplayManager::updateDoneData(const char* seconds, const char* tenths) {
+    lv_label_set_text(ui_DoneLabelTimeTenths, tenths);
+    lv_label_set_text(ui_DoneLabelTimeSeconds, seconds);
+
+    if(this->WifiStatus){
+        lv_obj_remove_flag(ui_DoneLabelUploading, LV_OBJ_FLAG_HIDDEN);
+    }
+}
 
 void DisplayManager::animateWarmupWave() {
     lv_anim_t a;

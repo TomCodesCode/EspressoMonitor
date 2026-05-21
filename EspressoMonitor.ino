@@ -16,7 +16,7 @@
 #define CURRENT_PIN 34  // Pin for SCT sensor
 // #define BUTTON_PIN  15  // Pin for the button (InputManager)
 #define BUZZER_PIN 4    // Pin for the passive buzzer. used to transmit the sounds.
-// (use ~120. at the moment- the values change for testing)
+// (use ~117. at the moment- the values change for testing)
 #define BOILER_BREW_TEMP 117    // default desired brewing start temp (of the boiler- the grouphead will always be much cooler)
 #define GROUPHEAD_BREW_TEMP 90 // desired grouphead brew temp (will result in actual textbook 93-97 C brewing temp)
 #define HEAT_SOAK_TIME 812000 // time needed for the E61 grouphead to heat up AFTER the boiler is at temp.
@@ -241,7 +241,22 @@ void loop() {
         case BREWING:{
             /*TESTING*/
             timer.start();
-            display.updateBrewData(timer.getFormattedTime(TimerManager::SECONDS), mockTempBoiler);
+            auto [seconds, tenths] = timer.getFormattedTime(TimerManager::SECONDS);
+            display.updateBrewData(seconds, tenths, mockTempBoiler);
+            if (currentTime - lastUpdateT > 100) {
+                lastUpdateT = currentTime;
+                mockTempBoiler -= 0.1;
+            }
+            if (timer.getSeconds() > 25.0){
+                timer.stop();
+                stateChangeTime = currentTime; // Record when we finished
+                requestCsvSave = true; // Trigger core 0 to start saving.
+                csvSaveComplete = false;
+                currentState = DONE;
+                sharedBoilerTemp = mockTempBoiler;
+                display.loadScreen(DONE);
+                Serial.println("State: DONE");
+            }
             /*
             display.updateBrewData(timer.getSeconds(), sharedBoilerTemp);
 
@@ -261,8 +276,9 @@ void loop() {
 
         // CASE: DONE
         // Shot finished. Show the final time for a few seconds.
-        case DONE:
-            display.updateDoneData(timer.getSeconds(), sharedBoilerTemp);
+        case DONE:{
+            auto [seconds, tenths] = timer.getFormattedTime(TimerManager::SECONDS);
+            display.updateDoneData(seconds, tenths);
             if (sharedPumpRunning) {
                 timer.reset();
                 timer.start();
@@ -284,6 +300,7 @@ void loop() {
                 }
             }
             break;
+        }
     }
     display.update();
 

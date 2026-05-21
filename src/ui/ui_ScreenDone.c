@@ -183,8 +183,9 @@ void ui_ScreenDone_screen_init(void)
     lv_obj_add_flag(ui_DoneChart, LV_OBJ_FLAG_OVERFLOW_VISIBLE);      //make scales visible - Should it be forced to True?
     //lv_obj_remove_flag( ui_DoneChart, LV_OBJ_FLAG_SCROLLABLE );    //no chart-zoom in LVGL9 - Shouldn't it be forced to False?
     lv_chart_set_type(ui_DoneChart, LV_CHART_TYPE_LINE);
+    lv_chart_set_point_count(ui_DoneChart, 100);
     lv_chart_set_axis_range(ui_DoneChart, LV_CHART_AXIS_PRIMARY_Y, 90, 120);
-    lv_chart_set_div_line_count(ui_DoneChart, 5, 10);
+    lv_chart_set_div_line_count(ui_DoneChart, 8, 30);
     lv_obj_set_style_radius(ui_DoneChart, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_DoneChart, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_DoneChart, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -238,10 +239,6 @@ void ui_ScreenDone_screen_init(void)
     lv_scale_set_total_tick_count(ui_DoneChart_Yaxis2, (0 > 0 ? 0 - 1 : 0) * 0 + 1);
     lv_scale_set_major_tick_every(ui_DoneChart_Yaxis2, 0 >= 1 ? 0 : 1);
     lv_scale_set_label_show(ui_DoneChart_Yaxis2, false);
-    lv_chart_series_t * ui_DoneChart_series_1 = lv_chart_add_series(ui_DoneChart, lv_color_hex(0xB30000),
-                                                                    LV_CHART_AXIS_PRIMARY_Y);
-    static lv_coord_t ui_DoneChart_series_1_array[] = { 117, 115, 114, 110, 109, 105, 104, 105, 105, 95 };
-    lv_chart_set_series_ext_y_array(ui_DoneChart, ui_DoneChart_series_1, ui_DoneChart_series_1_array);
 
     lv_obj_set_style_line_color(ui_DoneChart, lv_color_hex(0xFF0000), LV_PART_ITEMS | LV_STATE_DEFAULT);
     lv_obj_set_style_line_opa(ui_DoneChart, 255, LV_PART_ITEMS | LV_STATE_DEFAULT);

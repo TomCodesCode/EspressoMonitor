@@ -37,9 +37,11 @@ private:
 
     // Auto scale chart variables
     static const int MAX_BREW_TIME = 120; // 2 minutes max
-    int brewTemperatures[MAX_BREW_TIME];
+    float brewTemperatures[MAX_BREW_TIME];
     int currentChartPoint = 0;
     unsigned long lastChartUpdate = 0;
+    lv_chart_series_t * brew_ser;
+    lv_chart_series_t * done_ser;
 
     // helpers
     void animateWarmupWave();
@@ -56,8 +58,8 @@ public:
     void loadScreen(SystemState state);
     void updateWarmupData(float boilerTemp, float estGroupheadTemp);
     void updateReadyData(float boilerTemp, float estGroupheadTemp, const char * minutes, const char * seconds);
-    void updateBrewData(float timer, float temp);
-    void updateDoneData(float timer, float temp);
+    void updateBrewData(const char* seconds, const char* tenths, float temp);
+    void updateDoneData(const char* seconds, const char* tenths);
 
     void setSDState(bool isConnected);
     void setWifiState(bool isConnected);
