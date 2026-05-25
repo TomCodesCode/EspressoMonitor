@@ -44,7 +44,7 @@ void ui_ScreenReady_screen_init(void)
     lv_obj_add_flag(ui_ReadyImageBg, LV_OBJ_FLAG_CLICKABLE);     /// Flags
     lv_obj_remove_flag(ui_ReadyImageBg, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM |
                        LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
-    lv_obj_set_style_opa(ui_ReadyImageBg, 80, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_opa(ui_ReadyImageBg, 150, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_ReadyPanelOverlay = lv_obj_create(ui_ScreenReady);
     lv_obj_set_width(ui_ReadyPanelOverlay, 320);
@@ -192,14 +192,10 @@ void ui_ScreenReady_screen_init(void)
     lv_obj_remove_flag(ui_ReadyPanelTime,
                        LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_SCROLL_ELASTIC | LV_OBJ_FLAG_SCROLL_MOMENTUM |
                        LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
-    lv_obj_set_style_radius(ui_ReadyPanelTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_ReadyPanelTime, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_ReadyPanelTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui_ReadyPanelTime, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_ReadyPanelTime, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_ReadyPanelTime, 50, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_ReadyPanelTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-
-    lv_obj_set_style_radius(ui_ReadyPanelTime, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_color(ui_ReadyPanelTime, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
-    lv_obj_set_style_bg_opa(ui_ReadyPanelTime, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
 
     ui_ReadyLabelTimeSeconds = lv_label_create(ui_ReadyPanelTime);
     lv_obj_set_width(ui_ReadyLabelTimeSeconds, 75);
@@ -264,6 +260,9 @@ void ui_ScreenReady_screen_init(void)
                        LV_OBJ_FLAG_SCROLL_CHAIN);     /// Flags
     lv_obj_set_style_text_align(ui_ReadyLabelTemp, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_ReadyLabelTemp, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_radius(ui_ReadyLabelTemp, 10, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_color(ui_ReadyLabelTemp, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(ui_ReadyLabelTemp, 50, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     uic_ScreenReady = ui_ScreenReady;
 
