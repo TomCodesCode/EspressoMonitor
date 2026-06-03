@@ -28,6 +28,10 @@ void SDManager::init() {
     isReady = true;
 }
 
+void SDManager::setSpiMutex(SemaphoreHandle_t m) {
+    spiMutex = m;
+}
+
 bool SDManager::isInitialized() {
     return isReady;
 }
@@ -35,24 +39,34 @@ bool SDManager::isInitialized() {
 void SDManager::appendLog(const char* path, const char* message) {
     if (!isReady) return; // Don't crash if the card isn't mounted!
 
+    // Fix 6: own the shared bus for the whole open/write/close transaction.
+    if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
+
     File file = SD.open(path, FILE_APPEND);
     if (!file) {
         Serial.print("ERROR: Failed to open ");
         Serial.println(path);
+        if (spiMutex) xSemaphoreGive(spiMutex);
         return;
     }
-    
+
     file.println(message);
     file.close();
+
+    if (spiMutex) xSemaphoreGive(spiMutex);
 }
 
 void SDManager::readLog(const char* path) {
     if (!isReady) return;
 
+    // Fix 6: own the shared bus for the whole read transaction.
+    if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
+
     File file = SD.open(path);
     if (!file) {
         Serial.print("ERROR: Failed to open ");
         Serial.println(path);
+        if (spiMutex) xSemaphoreGive(spiMutex);
         return;
     }
 
@@ -62,6 +76,8 @@ void SDManager::readLog(const char* path) {
     }
     Serial.println("END OF FILE");
     file.close();
+
+    if (spiMutex) xSemaphoreGive(spiMutex);
 }
 
 // A quick diagnostic test to run during setup

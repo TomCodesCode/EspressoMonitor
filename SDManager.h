@@ -14,12 +14,14 @@
 class SDManager {
 private:
     SPIClass* sdSPI;
+    SemaphoreHandle_t spiMutex = NULL; // guards the shared bus (set via setSpiMutex)
 
 public:
     bool isReady;
 
     SDManager(SPIClass* sharedSPI);
     void init();
+    void setSpiMutex(SemaphoreHandle_t m);
     bool isInitialized();
 
     void appendLog(const char* path, const char* message);

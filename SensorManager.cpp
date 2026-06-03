@@ -34,6 +34,10 @@ void SensorManager::init() {
     thermo->clearFault();
 }
 
+void SensorManager::setSpiMutex(SemaphoreHandle_t m) {
+    spiMutex = m;
+}
+
 void SensorManager::update() {
     unsigned long currentMillis = millis();
 
@@ -42,18 +46,23 @@ void SensorManager::update() {
     if (!isMeasuring) {
         if (currentMillis - lastReadTime > 1000) {
             lastReadTime = currentMillis;
+            // Fix 6: hold the bus only for the actual SPI register write.
+            if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
             thermo->enableBias(true);
+            if (spiMutex) xSemaphoreGive(spiMutex);
             measureStartTime = currentMillis;   // Start the stopwatch
             isMeasuring = true;
         }
-    
+
     } else {
         // 100ms of hardware stabilization
         if (currentMillis - measureStartTime >= 100) {
 
+            // Fix 6: one bus transaction for the read + fault handling.
+            if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
             float temp = thermo->temperature(RNOMINAL, RREF);
             uint8_t fault = thermo->readFault();
-            
+
             if (fault) {
                 Serial.print("Fault 0x"); Serial.println(fault, HEX);
                 thermo->clearFault();
@@ -63,13 +72,14 @@ void SensorManager::update() {
                 // 0.385ohms per 1C. 100ohms at 0C. Redundant 3WIRE mode .
                 // float calibratedTemp = temp - 0.25; // Account for cable length + plugs resistance.
                 // float calibratedTemp = temp;
-                
+
                 Serial.print("Stable Temp: "); Serial.println(temp);
                 currentTemp = temp;
-                
+
                 thermo->enableBias(false);
                 isMeasuring = false;
             }
+            if (spiMutex) xSemaphoreGive(spiMutex);
         }
     }
 }

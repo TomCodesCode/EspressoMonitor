@@ -160,27 +160,43 @@ void DisplayManager::loadScreen(SystemState state) {
         case READY:   lv_screen_load(ui_ScreenReady);  break;
         case BREWING:{
             lv_screen_load(ui_ScreenBrew);
-            currentChartPoint = 0;
-            lastChartUpdate = millis(); 
 
-            lv_chart_set_point_count(ui_BrewChart, 300); // 30 seconds
+            // Start a fresh recording in the shared session.
+            if (session != nullptr) {
+                portENTER_CRITICAL(sessionMux);
+                session->pointCount = 0;
+                session->isComplete = false;
+                portEXIT_CRITICAL(sessionMux);
+            }
+            lastChartUpdate = millis();
+
+            lv_chart_set_point_count(ui_BrewChart, BREW_MAX_POINTS); // 30 seconds
             lv_chart_set_all_value(ui_BrewChart, brew_ser, LV_CHART_POINT_NONE);
             break;
-        } 
+        }
         case DONE:{
             lv_screen_load(ui_ScreenDone);
-            
-            int displayPoints = (currentChartPoint < 2) ? 2 : currentChartPoint;
+
+            // Grab the point count once; the array is no longer being written
+            // (brewing has stopped) so we can copy it without holding the lock.
+            int count = 0;
+            if (session != nullptr) {
+                portENTER_CRITICAL(sessionMux);
+                count = session->pointCount;
+                portEXIT_CRITICAL(sessionMux);
+            }
+
+            int displayPoints = (count < 2) ? 2 : count;
             lv_chart_set_point_count(ui_DoneChart, displayPoints);
-            
+
             // Crash Protection
-            if (done_ser != NULL) {
+            if (done_ser != NULL && session != nullptr) {
                 // Wipe the chart clean of junk memory
                 lv_chart_set_all_value(ui_DoneChart, done_ser, LV_CHART_POINT_NONE);
-                
+
                 // Safely shift the entire history into the chart
-                for(int i = 0; i < currentChartPoint; i++) {
-                    lv_chart_set_next_value(ui_DoneChart, done_ser, (int)brewTemperatures[i]);
+                for(int i = 0; i < count; i++) {
+                    lv_chart_set_next_value(ui_DoneChart, done_ser, (int)session->temperatures[i]);
                 }
             }
             break;
@@ -281,22 +297,31 @@ void DisplayManager::updateBrewData(const char* seconds, const char* tenths, flo
     snprintf(boilerStr, sizeof(boilerStr), "%.1f C", temp);
     lv_label_set_text(ui_BrewLabelTemp, boilerStr);
 
-    // SYNCHRONIZED LOGGING: Only fire when the 'tenths' timer rolls over
-    static char lastTenth = 'X'; 
-    if (tenths[0] != lastTenth) {
-        lastTenth = tenths[0];
+    // SYNCHRONIZED LOGGING: Only fire when the 'seconds' timer rolls over
+    static char lastSecond = 'X';
+    if (seconds[1] != lastSecond) {
+        lastSecond = seconds[1];
 
-        // Save to our array
-        if (currentChartPoint < MAX_BREW_TIME) {
-            brewTemperatures[currentChartPoint] = temp;
-            currentChartPoint++;
+        // Save to the shared session (guarded; Core 0 may read it).
+        if (session != nullptr) {
+            portENTER_CRITICAL(sessionMux);
+            if (session->pointCount < BREW_MAX_POINTS) {
+                session->temperatures[session->pointCount] = temp;
+                session->pointCount++;
+            }
+            portEXIT_CRITICAL(sessionMux);
         }
 
         // Shift the chart safely
-        if (brew_ser != NULL) { 
+        if (brew_ser != NULL) {
             lv_chart_set_next_value(ui_BrewChart, brew_ser, (int)temp);
         }
     }
+}
+
+void DisplayManager::setBrewSession(BrewSession * s, portMUX_TYPE * mux) {
+    session = s;
+    sessionMux = mux;
 }
 
 void DisplayManager::updateDoneData(const char* seconds, const char* tenths) {

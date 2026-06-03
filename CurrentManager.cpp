@@ -3,13 +3,11 @@
 #include "CurrentManager.h"
 #include <Preferences.h>
 
-float dynamicThreshold = 0.0;
-Preferences preferences; 
-
 CurrentManager::CurrentManager(int pinNumber) {
     pin = pinNumber;
     zeroPoint = 1950;
     lastCheck = 0;
+    dynamicThreshold = 0.0;
     lastPumpState = false;
     
     // Initialize debounce variables
@@ -20,6 +18,7 @@ CurrentManager::CurrentManager(int pinNumber) {
 
 void CurrentManager::init() {
     pinMode(pin, INPUT);
+    Preferences preferences;
 
     Serial.println("Waiting for SCT circuit to stabilize...");
     

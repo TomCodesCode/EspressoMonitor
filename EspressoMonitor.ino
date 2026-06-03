@@ -11,6 +11,7 @@
 // #include "InputManager.h"
 #include "SystemState.h"
 #include "SDManager.h"
+#include "BrewSession.h"
 
 // PIN DEFINITIONS
 #define CURRENT_PIN 34  // Pin for SCT sensor
@@ -47,6 +48,30 @@ std::atomic<bool> sharedPumpRunning = false;
 std::atomic<bool> requestCsvSave = false;
 std::atomic<bool> csvSaveComplete = false;
 
+// --- Fix 4: shared brew history (written by Core 1, read by Core 0) ---
+BrewSession brewSession;
+portMUX_TYPE brewMux = portMUX_INITIALIZER_UNLOCKED;
+
+// consistent live-temperature snapshot
+// Two separate atomics can't be read as a coherent pair (you might catch the
+// boiler from this cycle and the grouphead from the last). The web server needs
+// both temps from the same instant, so publish them together under one lock.
+struct TempSnapshot { float boiler; float grouphead; };
+portMUX_TYPE tempMux = portMUX_INITIALIZER_UNLOCKED;
+TempSnapshot latestTemps = { 20.0, 50.0 };
+
+// Read a coherent boiler+grouphead pair. Use this from the web server.
+TempSnapshot getLatestTemps() {
+    TempSnapshot snap;
+    portENTER_CRITICAL(&tempMux);
+    snap = latestTemps;
+    portEXIT_CRITICAL(&tempMux);
+    return snap;
+}
+
+// --- Fix 6: serialize access to the shared HSPI bus (MAX31865 + SD) ---
+SemaphoreHandle_t spiMutex = NULL;
+
 // TESTING vars
 float mockTempBoiler = 20.0;
 float mockTempGH = 0.0;
@@ -58,6 +83,23 @@ void setup() {
 
     Serial.println();
     sysBoots(); // Number of boots
+
+    // Fix 5: confirm 32-bit atomics are lock-free on this chip (informational).
+    // is_always_lock_free is a compile-time constant, so it avoids the runtime
+    // __atomic_is_lock_free symbol that the Xtensa runtime doesn't provide.
+    Serial.print("Atomic float lock-free: ");
+    Serial.println(std::atomic<float>::is_always_lock_free ? "yes" : "no (spinlock)");
+
+    // Fix 6: create the shared-bus mutex BEFORE the worker task starts.
+    spiMutex = xSemaphoreCreateMutex();
+    if (spiMutex == NULL) {
+        Serial.println("FATAL: Could not create SPI mutex!");
+    }
+    sensor.setSpiMutex(spiMutex);
+    sdCard.setSpiMutex(spiMutex);
+
+    // Fix 4: give the display a handle to the shared brew history.
+    display.setBrewSession(&brewSession, &brewMux);
 
     display.init();
     display.showStartupScreen();
@@ -86,18 +128,38 @@ void setup() {
 void coreZeroWorkerTask(void * parameter) {
     unsigned long prevMeasure = 0;
     for(;;) {
-        sensor.update(); 
-        sharedBoilerTemp = sensor.getTemp();
-        
+        sensor.update();
+
+        float boilerNow = sensor.getTemp();
         unsigned long boilerReadyTime = isBoilerReady ? millis() - heatSoakStartTime : 0;
-        sharedGroupheadTemp = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
-        
+        float groupheadNow = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
+
+        sharedBoilerTemp = boilerNow;
+        sharedGroupheadTemp = groupheadNow;
+
+        // Fix 5: publish both temps as one coherent pair for the web server.
+        portENTER_CRITICAL(&tempMux);
+        latestTemps.boiler = boilerNow;
+        latestTemps.grouphead = groupheadNow;
+        portEXIT_CRITICAL(&tempMux);
+
         // sharedPumpRunning = pumpSensor.isPumpOn();
         sharedPumpRunning = false;
-        
+
         // SD Card Handshake (Triggered by Core 1)
         if (currentState == DONE && requestCsvSave) {
-            sdCard.appendLog("/brew_log.csv", "TEST DATA"); // Replace with actual data
+            // Fix 4: read the finished brew from the shared session and log it.
+            portENTER_CRITICAL(&brewMux);
+            float dur = brewSession.durationSeconds;
+            int pts = brewSession.pointCount;
+            portEXIT_CRITICAL(&brewMux);
+
+            char logLine[64];
+            // millis timestamp, shot duration (s), number of recorded temp points
+            // (millis is the best identifier we have until an RTC / WiFi time exists)
+            snprintf(logLine, sizeof(logLine), "%lu,%.1f,%d", millis(), dur, pts);
+            sdCard.appendLog("/brew_log.csv", logLine);
+
             requestCsvSave = false;
             csvSaveComplete = true; // Signal Core 1 to proceed
         }
@@ -250,6 +312,13 @@ void loop() {
             if (timer.getSeconds() > 25.0){
                 timer.stop();
                 stateChangeTime = currentTime; // Record when we finished
+
+                // Fix 4: finalize the shared session before signalling the save.
+                portENTER_CRITICAL(&brewMux);
+                brewSession.durationSeconds = timer.getSeconds();
+                brewSession.isComplete = true;
+                portEXIT_CRITICAL(&brewMux);
+
                 requestCsvSave = true; // Trigger core 0 to start saving.
                 csvSaveComplete = false;
                 currentState = DONE;

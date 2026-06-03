@@ -80,7 +80,7 @@ void SoundManager::playHelldivers() {
 }
 
 void SoundManager::playStop() {
-    tone(4, 400, 300);
+    tone(this->pin, 400, 300);
 }
 
 void SoundManager::update() {

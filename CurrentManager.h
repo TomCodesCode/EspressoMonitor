@@ -7,6 +7,7 @@ class CurrentManager {
 private:
     int pin;
     int zeroPoint;           // discoverrd at startup
+    float dynamicThreshold;
     unsigned long lastCheck; // prevent blocking the CPU
     bool lastPumpState;      // prevent flickering
     

@@ -20,14 +20,16 @@ class SensorManager {
 private:
     Adafruit_MAX31865* thermo; // Pointer to the library object
     SPIClass* maxSPI; // Shared bus with SD
+    SemaphoreHandle_t spiMutex = NULL; // guards the shared bus (set via setSpiMutex)
     unsigned long lastReadTime;
     float currentTemp;
-    bool isMeasuring; 
+    bool isMeasuring;
     unsigned long measureStartTime;
 
 public:
     SensorManager(SPIClass* sharedSPI);
     void init();
+    void setSpiMutex(SemaphoreHandle_t m);
     void update();
     float getTemp();
     float getEstimatedGroupheadTemp(unsigned long timeSinceBoilerReadyMs);

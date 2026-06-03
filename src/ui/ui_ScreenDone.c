@@ -258,7 +258,7 @@ void ui_ScreenDone_screen_init(void)
     ui_DonePanelTime = lv_obj_create(ui_DonePanelOverlay);
     lv_obj_set_width(ui_DonePanelTime, 150);
     lv_obj_set_height(ui_DonePanelTime, 60);
-    lv_obj_set_x(ui_DonePanelTime, 5);
+    lv_obj_set_x(ui_DonePanelTime, 30);
     lv_obj_set_y(ui_DonePanelTime, 30);
     lv_obj_set_align(ui_DonePanelTime, LV_ALIGN_CENTER);
     lv_obj_remove_flag(ui_DonePanelTime,
@@ -268,7 +268,6 @@ void ui_ScreenDone_screen_init(void)
     lv_obj_set_style_bg_color(ui_DonePanelTime, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_opa(ui_DonePanelTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_DonePanelTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_transform_scale(ui_DonePanelTime, 300, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_set_style_radius(ui_DonePanelTime, 0, LV_PART_SCROLLBAR | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_DonePanelTime, lv_color_hex(0xFFFFFF), LV_PART_SCROLLBAR | LV_STATE_DEFAULT);

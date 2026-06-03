@@ -1,9 +1,11 @@
 #ifndef DISPLAY_MANAGER_H
 #define DISPLAY_MANAGER_H
 
+#include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <lvgl.h>
 #include "SystemState.h"
+#include "BrewSession.h"
 
 class DisplayManager {
 private:
@@ -35,10 +37,11 @@ private:
     bool showingBoilerTemp = false; // Default to Grouphead temp
     static void temp_btn_event_cb(lv_event_t * e);
 
-    // Auto scale chart variables
-    static const int MAX_BREW_TIME = 120; // 2 minutes max
-    float brewTemperatures[MAX_BREW_TIME];
-    int currentChartPoint = 0;
+    // Auto scale chart variables.
+    // Brew history now lives in the shared BrewSession (see setBrewSession);
+    // this is just a borrowed pointer plus the lock that guards it.
+    BrewSession * session = nullptr;
+    portMUX_TYPE * sessionMux = nullptr;
     unsigned long lastChartUpdate = 0;
     lv_chart_series_t * brew_ser;
     lv_chart_series_t * done_ser;
@@ -54,6 +57,8 @@ public:
     void update(); 
     
     void showStartupScreen();
+
+    void setBrewSession(BrewSession * s, portMUX_TYPE * mux);
 
     void loadScreen(SystemState state);
     void updateWarmupData(float boilerTemp, float estGroupheadTemp);
