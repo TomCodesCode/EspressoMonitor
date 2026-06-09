@@ -30,6 +30,8 @@ public:
     void clearLogs();
     uint32_t getFreeSpaceMB();
     int getBrewCount();
+    void saveBrewTemps(unsigned long id, float* temps, int count);
+    String readBrewTempsString(unsigned long id);
     void testReadWrite();
 };
 

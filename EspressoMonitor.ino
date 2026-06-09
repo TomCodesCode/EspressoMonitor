@@ -14,6 +14,7 @@
 #include "BrewSession.h"
 #include "ServerManager.h"
 #include "secrets.h"
+#include <time.h>
 
 // PIN DEFINITIONS
 #define CURRENT_PIN 34  // Pin for SCT sensor
@@ -138,10 +139,14 @@ void coreZeroWorkerTask(void * parameter) {
         sharedGroupheadTemp = groupheadNow;
 
         // publish both temps as one coherent pair for the web server.
-        portENTER_CRITICAL(&tempMux);
-        latestTemps.boiler = boilerNow;
-        latestTemps.grouphead = groupheadNow;
-        portEXIT_CRITICAL(&tempMux);
+        // Guard: skip if sensor is disconnected/faulted (returns near-zero).
+        // While mocking, Core 1 writes latestTemps instead (see loop()).
+        if (boilerNow > 5.0) {
+            portENTER_CRITICAL(&tempMux);
+            latestTemps.boiler    = boilerNow;
+            latestTemps.grouphead = groupheadNow;
+            portEXIT_CRITICAL(&tempMux);
+        }
 
         // sharedPumpRunning = pumpSensor.isPumpOn();
         sharedPumpRunning = false;
@@ -155,11 +160,13 @@ void coreZeroWorkerTask(void * parameter) {
             portEXIT_CRITICAL(&brewMux);
             // only save brew logs that are of valid duration.
             if (10 <= dur && dur <= 120) {
-                char logLine[64];
-                // millis timestamp, shot duration (s), number of recorded temp points
-                // (millis is the best identifier we have until an RTC / WiFi time exists)
-                snprintf(logLine, sizeof(logLine), "%lu,%.1f,%d", millis(), dur, pts);
+                unsigned long brewId = millis(); // unique ID for both log line and temp file
+                time_t unixTime = getUnixTime(); // 0 if NTP not yet synced; JS uses millis fallback
+                char logLine[80];
+                snprintf(logLine, sizeof(logLine), "%lu,%.1f,%d,%ld", brewId, dur, pts, (long)unixTime);
                 sdCard.appendLog("/brew_log.csv", logLine);
+                // temperatures[] safe without lock: isComplete=true means Core 1 stopped writing
+                sdCard.saveBrewTemps(brewId, brewSession.temperatures, pts);
             }
 
             requestCsvSave = false;
@@ -394,9 +401,21 @@ void loop() {
             break;
         }
     }
+    // *TESTING* publish mock temps to web server; remove when real sensors are active.
+    portENTER_CRITICAL(&tempMux);
+    latestTemps.boiler    = mockTempBoiler;
+    latestTemps.grouphead = mockTempGH;
+    portEXIT_CRITICAL(&tempMux);
+
     display.update();
 
     delay(33); // FreeRTOS watchdog timer anti starvation
+}
+
+// Returns UTC Unix timestamp if NTP has synced, 0 otherwise.
+time_t getUnixTime() {
+    struct tm t;
+    return getLocalTime(&t, 0) ? mktime(&t) : 0;
 }
 
 void sysBoots(){

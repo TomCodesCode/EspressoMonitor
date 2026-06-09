@@ -27,5 +27,6 @@ private:
     void handleRoot();
     void handleApiTemps();
     void handleApiLog();
+    void handleApiBrewTemps();
     const char* stateToString(SystemState s);
 };

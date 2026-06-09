@@ -99,8 +99,53 @@ void SDManager::clearLogs() {
     if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
     SD.remove("/brew_log.csv");
     SD.remove("/brew_log.txt");
+    // Delete individual brew temp files (brew_*.csv)
+    File root = SD.open("/");
+    File entry = root.openNextFile();
+    while (entry) {
+        String name = String(entry.name());
+        entry.close();
+        if (name.startsWith("/brew_") && name.endsWith(".csv") && name != "/brew_log.csv") {
+            SD.remove(name.c_str());
+        }
+        entry = root.openNextFile();
+    }
+    root.close();
     if (spiMutex) xSemaphoreGive(spiMutex);
     Serial.println("Logs cleared.");
+}
+
+void SDManager::saveBrewTemps(unsigned long id, float* temps, int count) {
+    if (!isReady || count <= 0) return;
+    if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
+    char path[32];
+    snprintf(path, sizeof(path), "/brew_%lu.csv", id);
+    File file = SD.open(path, FILE_WRITE);
+    if (!file) {
+        if (spiMutex) xSemaphoreGive(spiMutex);
+        return;
+    }
+    for (int i = 0; i < count; i++) {
+        file.println(temps[i], 1);
+    }
+    file.close();
+    if (spiMutex) xSemaphoreGive(spiMutex);
+}
+
+String SDManager::readBrewTempsString(unsigned long id) {
+    if (!isReady) return "";
+    char path[32];
+    snprintf(path, sizeof(path), "/brew_%lu.csv", id);
+    if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
+    File file = SD.open(path);
+    if (!file) {
+        if (spiMutex) xSemaphoreGive(spiMutex);
+        return "";
+    }
+    String result = file.readString();
+    file.close();
+    if (spiMutex) xSemaphoreGive(spiMutex);
+    return result;
 }
 
 uint32_t SDManager::getFreeSpaceMB() {
