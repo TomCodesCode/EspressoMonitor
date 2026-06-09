@@ -59,6 +59,16 @@ void DisplayManager::init() {
     // Done screen
     lv_obj_add_flag(ui_DoneLabelUploading, LV_OBJ_FLAG_HIDDEN);
 
+    // Settings button on every screen → open settings
+    lv_obj_add_event_cb(ui_WarmupBtnSettings, settings_btn_event_cb,    LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(ui_ReadyBtnSettings,  settings_btn_event_cb,    LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(ui_BrewBtnSettings,   settings_btn_event_cb,    LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(ui_DoneBtnSettings,   settings_btn_event_cb,    LV_EVENT_CLICKED, this);
+
+    // Settings screen buttons
+    lv_obj_add_event_cb(ui_SettingsButtonExit,      settings_exit_btn_event_cb,       LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(ui_SettingsButtonClearLogs, settings_clear_logs_btn_event_cb, LV_EVENT_CLICKED, this);
+
     Serial.println("LVGL v9 Display Manager Initialized.");
 }
 
@@ -172,6 +182,14 @@ void DisplayManager::loadScreen(SystemState state) {
 
             lv_chart_set_point_count(ui_BrewChart, BREW_MAX_POINTS); // 30 seconds
             lv_chart_set_all_value(ui_BrewChart, brew_ser, LV_CHART_POINT_NONE);
+            break;
+        }
+        case SETTINGS:{
+            lv_screen_load(ui_ScreenSettings);
+            lv_label_set_text(ui_SettingsLabelFWVerNum, "1.0");
+            // Reset cache so labels refresh with new SD stats from Core 0
+            _lastSettingsFreeMB    = UINT32_MAX;
+            _lastSettingsBrewCount = -1;
             break;
         }
         case DONE:{
@@ -322,6 +340,48 @@ void DisplayManager::updateBrewData(const char* seconds, const char* tenths, flo
 void DisplayManager::setBrewSession(BrewSession * s, portMUX_TYPE * mux) {
     session = s;
     sessionMux = mux;
+}
+
+void DisplayManager::setSettingsPointers(SystemState* cur, SystemState* prev, std::atomic<bool>* clearFlag) {
+    _currentState    = cur;
+    _previousState   = prev;
+    _requestLogClear = clearFlag;
+}
+
+void DisplayManager::updateSettingsData(uint32_t freeMB, int brewCount) {
+    if (freeMB != _lastSettingsFreeMB) {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%lu MB", freeMB);
+        lv_label_set_text(ui_SettingsLabelSDFree, buf);
+        _lastSettingsFreeMB = freeMB;
+    }
+    if (brewCount != _lastSettingsBrewCount) {
+        char buf[8];
+        snprintf(buf, sizeof(buf), "%d", brewCount);
+        lv_label_set_text(ui_SettingsLabelBrewCountNum, buf);
+        _lastSettingsBrewCount = brewCount;
+    }
+}
+
+void DisplayManager::settings_btn_event_cb(lv_event_t* e) {
+    DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
+    if (!dm->_currentState || !dm->_previousState) return;
+    *dm->_previousState = *dm->_currentState;
+    *dm->_currentState  = SETTINGS;
+    dm->loadScreen(SETTINGS);
+}
+
+void DisplayManager::settings_exit_btn_event_cb(lv_event_t* e) {
+    DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
+    if (!dm->_currentState || !dm->_previousState) return;
+    SystemState ret = *dm->_previousState;
+    *dm->_currentState = ret;
+    dm->loadScreen(ret);
+}
+
+void DisplayManager::settings_clear_logs_btn_event_cb(lv_event_t* e) {
+    DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
+    if (dm->_requestLogClear) *dm->_requestLogClear = true;
 }
 
 void DisplayManager::updateDoneData(const char* seconds, const char* tenths) {

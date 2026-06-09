@@ -26,6 +26,10 @@ public:
 
     void appendLog(const char* path, const char* message);
     void readLog(const char* path);
+    String readLogString(const char* path);
+    void clearLogs();
+    uint32_t getFreeSpaceMB();
+    int getBrewCount();
     void testReadWrite();
 };
 

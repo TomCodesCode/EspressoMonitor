@@ -10,6 +10,12 @@
 // Single source of truth for the chart resolution (replaces MAX_BREW_TIME).
 static const int BREW_MAX_POINTS = 300;
 
+// Coherent boiler+grouphead pair published by Core 0 under tempMux.
+struct TempSnapshot {
+    float boiler;
+    float grouphead;
+};
+
 struct BrewSession {
     float temperatures[BREW_MAX_POINTS];
     int   pointCount = 0;        // how many valid points are in temperatures[]

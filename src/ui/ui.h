@@ -30,6 +30,7 @@ extern "C" {
 #include "ui_ScreenReady.h"
 #include "ui_ScreenBrew.h"
 #include "ui_ScreenDone.h"
+#include "ui_ScreenSettings.h"
 
 ///////////////////// VARIABLES ////////////////////
 

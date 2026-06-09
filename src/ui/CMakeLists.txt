@@ -2,6 +2,7 @@ SET(SOURCES ui_ScreenWarmup.c
     ui_ScreenReady.c
     ui_ScreenBrew.c
     ui_ScreenDone.c
+    ui_ScreenSettings.c
     ui.c
     ui_comp_hook.c
     ui_helpers.c

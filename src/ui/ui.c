@@ -34,6 +34,7 @@ void ui_init(void)
     ui_ScreenReady_screen_init();
     ui_ScreenBrew_screen_init();
     ui_ScreenDone_screen_init();
+    ui_ScreenSettings_screen_init();
     ui____initial_actions0 = lv_obj_create(NULL);
     lv_disp_load_scr(ui_ScreenWarmup);
 }
@@ -44,4 +45,5 @@ void ui_destroy(void)
     ui_ScreenReady_screen_destroy();
     ui_ScreenBrew_screen_destroy();
     ui_ScreenDone_screen_destroy();
+    ui_ScreenSettings_screen_destroy();
 }

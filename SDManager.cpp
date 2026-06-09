@@ -39,7 +39,7 @@ bool SDManager::isInitialized() {
 void SDManager::appendLog(const char* path, const char* message) {
     if (!isReady) return; // Don't crash if the card isn't mounted!
 
-    // Fix 6: own the shared bus for the whole open/write/close transaction.
+    // own the shared bus for the whole open/write/close transaction.
     if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
 
     File file = SD.open(path, FILE_APPEND);
@@ -78,6 +78,54 @@ void SDManager::readLog(const char* path) {
     file.close();
 
     if (spiMutex) xSemaphoreGive(spiMutex);
+}
+
+String SDManager::readLogString(const char* path) {
+    if (!isReady) return "";
+    if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
+    File file = SD.open(path);
+    if (!file) {
+        if (spiMutex) xSemaphoreGive(spiMutex);
+        return "";
+    }
+    String result = file.readString();
+    file.close();
+    if (spiMutex) xSemaphoreGive(spiMutex);
+    return result;
+}
+
+void SDManager::clearLogs() {
+    if (!isReady) return;
+    if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
+    SD.remove("/brew_log.csv");
+    SD.remove("/brew_log.txt");
+    if (spiMutex) xSemaphoreGive(spiMutex);
+    Serial.println("Logs cleared.");
+}
+
+uint32_t SDManager::getFreeSpaceMB() {
+    if (!isReady) return 0;
+    if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
+    uint32_t free = (uint32_t)((SD.totalBytes() - SD.usedBytes()) >> 20);
+    if (spiMutex) xSemaphoreGive(spiMutex);
+    return free;
+}
+
+int SDManager::getBrewCount() {
+    if (!isReady) return 0;
+    if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
+    File file = SD.open("/brew_log.csv");
+    if (!file) {
+        if (spiMutex) xSemaphoreGive(spiMutex);
+        return 0;
+    }
+    int count = 0;
+    while (file.available()) {
+        if (file.read() == '\n') count++;
+    }
+    file.close();
+    if (spiMutex) xSemaphoreGive(spiMutex);
+    return count;
 }
 
 // A quick diagnostic test to run during setup

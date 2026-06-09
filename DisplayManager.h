@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <lvgl.h>
+#include <atomic>
 #include "SystemState.h"
 #include "BrewSession.h"
 
@@ -46,8 +47,18 @@ private:
     lv_chart_series_t * brew_ser;
     lv_chart_series_t * done_ser;
 
+    // Settings state
+    SystemState*          _currentState    = nullptr;
+    SystemState*          _previousState   = nullptr;
+    std::atomic<bool>*    _requestLogClear = nullptr;
+    uint32_t              _lastSettingsFreeMB  = UINT32_MAX;
+    int                   _lastSettingsBrewCount = -1;
+
     // helpers
     void animateWarmupWave();
+    static void settings_btn_event_cb(lv_event_t* e);
+    static void settings_exit_btn_event_cb(lv_event_t* e);
+    static void settings_clear_logs_btn_event_cb(lv_event_t* e);
 
     uint32_t lastTickMillis;
 
@@ -59,8 +70,10 @@ public:
     void showStartupScreen();
 
     void setBrewSession(BrewSession * s, portMUX_TYPE * mux);
+    void setSettingsPointers(SystemState* cur, SystemState* prev, std::atomic<bool>* clearFlag);
 
     void loadScreen(SystemState state);
+    void updateSettingsData(uint32_t freeMB, int brewCount);
     void updateWarmupData(float boilerTemp, float estGroupheadTemp);
     void updateReadyData(float boilerTemp, float estGroupheadTemp, const char * minutes, const char * seconds);
     void updateBrewData(const char* seconds, const char* tenths, float temp);
