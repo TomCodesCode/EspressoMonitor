@@ -65,6 +65,7 @@ std::atomic<int>      sharedGHTarget{90};
 std::atomic<int>      sharedCalibTemp{50};    // GH temp observed by user at calibration time
 std::atomic<bool>     calibAvailable{false};  // true during first 60 s of READY (shown in settings)
 std::atomic<float>    sharedTau{592.0f};      // Newton's Law time constant (seconds)
+std::atomic<bool>     requestNotify{false};   // set by Core 1 on WARMUP→READY; Core 0 fires ntfy.sh
 
 // shared brew history (written by Core 1, read by Core 0)
 BrewSession brewSession;
@@ -251,6 +252,11 @@ void coreZeroWorkerTask(void * parameter) {
         webServer.handleClient();
         esp_task_wdt_reset();
 
+        if (requestNotify.load()) {
+            requestNotify.store(false);
+            webServer.notifyReady();
+        }
+
         if (millis() - lastHeartbeat > 30000) {
             lastHeartbeat = millis();
             Serial.printf("Core0 alive. Free heap: %u B  Min free: %u B\n",
@@ -306,6 +312,7 @@ void loop() {
                         mockTempGH = 88.0;
                         timer.start();
                         currentState = READY;
+                        requestNotify = true;
                         display.loadScreen(READY);
                         playReadySound();
                         readyTime = currentTime;
@@ -331,6 +338,7 @@ void loop() {
                 if (isBoilerReady && sharedGroupheadTemp.load() >= sharedGHTarget.load()) {
                     currentState = READY;
                     isBoilerReady = false;
+                    requestNotify = true;
                     display.loadScreen(READY);
                     playReadySound();
                     readyTime = currentTime;

@@ -1,6 +1,8 @@
 #include "ServerManager.h"
 #include <WiFi.h>
 #include <ESPmDNS.h>
+#include <HTTPClient.h>
+#include "secrets.h"
 
 static const char INDEX_HTML[] = R"HTML(
 <!DOCTYPE html>
@@ -181,6 +183,18 @@ void ServerManager::handleClient() {
 
 bool ServerManager::isConnected() {
     return WiFi.status() == WL_CONNECTED;
+}
+
+void ServerManager::notifyReady() {
+    if (WiFi.status() != WL_CONNECTED) return;
+    HTTPClient http;
+    http.begin("http://ntfy.sh/" NTFY_TOPIC);
+    http.addHeader("Title", "Espresso Ready");
+    http.addHeader("Priority", "high");
+    http.addHeader("Tags", "coffee");
+    http.POST("Your machine is ready to brew.");
+    http.end();
+    Serial.println("ntfy: ready notification sent.");
 }
 
 void ServerManager::tryStartServer() {

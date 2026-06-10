@@ -11,6 +11,7 @@ public:
     void setDataSources(TempSnapshot* temps, portMUX_TYPE* tempMux,
                         const SystemState* state, SDManager* sd);
     void handleClient();
+    void notifyReady();
     bool isConnected();
 
 private:
