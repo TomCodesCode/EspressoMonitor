@@ -19,6 +19,7 @@ extern lv_obj_t * ui_SettingsDropdownGHTemp;
 extern lv_obj_t * ui_SettingsDropdownBoilerTemp;
 extern lv_obj_t * ui_SettingsDropdownMusicSelect;
 extern lv_obj_t * ui_SettingsButtonCalibrateSoakTime;
+extern lv_obj_t * ui_SettingsSpinboxHeatsoak;
 extern lv_obj_t * ui_SettingsLabelCalibrateSoakTime;
 extern lv_obj_t * ui_SettingsButtonClearLogs;
 extern lv_obj_t * ui_SettingsLabelClearLogs;

@@ -15,7 +15,9 @@ public:
 
 private:
     WebServer          _server;
-    bool               _started     = false;
+    bool               _started          = false;
+    bool               _routesRegistered = false;
+    unsigned long      _reconnectAt      = 0;    // millis() target for next WiFi.begin() attempt
     const char*        _ssid        = nullptr;
     const char*        _password    = nullptr;
     TempSnapshot*      _temps       = nullptr;

@@ -6,7 +6,7 @@ enum SystemState {
     READY,     // Temp is hit, waiting for user to pull the lever
     BREWING,   // Lever is pulled, timer is running
     DONE,      // Shot finished, showing summary
-    SETTINGS   // Settings overlay, reachable from any state
+    SETTINGS   // Settings overlay, reachable from Warmup and Ready
 };
 
 #endif

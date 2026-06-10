@@ -121,12 +121,16 @@ bool CurrentManager::isPumpOn() {
     if (millis() - lastCheck >= 100) {
         lastCheck = millis();
         float strength = readStrength();
-        Serial.println(strength);
 
+        bool newState = lastPumpState;
         if (lastPumpState) {
-            if (strength < (dynamicThreshold - 1.0)) lastPumpState = false;
+            if (strength < (dynamicThreshold - 1.0)) newState = false;
         } else {
-            if (strength > dynamicThreshold) lastPumpState = true;
+            if (strength > dynamicThreshold) newState = true;
+        }
+        if (newState != lastPumpState) {
+            Serial.printf("Pump %s (strength=%.1f)\n", newState ? "ON" : "OFF", strength);
+            lastPumpState = newState;
         }
     }
 

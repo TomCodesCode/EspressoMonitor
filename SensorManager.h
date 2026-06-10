@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_MAX31865.h>
+#include <atomic>
 
 // Define HSPI Pins
 #define MAX_CS   25
@@ -20,7 +21,9 @@ class SensorManager {
 private:
     Adafruit_MAX31865* thermo; // Pointer to the library object
     SPIClass* maxSPI; // Shared bus with SD
-    SemaphoreHandle_t spiMutex = NULL; // guards the shared bus (set via setSpiMutex)
+    SemaphoreHandle_t spiMutex = NULL;
+    std::atomic<int>*   _ghTargetRef = nullptr;
+    std::atomic<float>* _tauRef      = nullptr;
     unsigned long lastReadTime;
     float currentTemp;
     bool isMeasuring;
@@ -30,12 +33,14 @@ public:
     SensorManager(SPIClass* sharedSPI);
     void init();
     void setSpiMutex(SemaphoreHandle_t m);
+    void setGroupheadTargetRef(std::atomic<int>* ref);
+    void setTauRef(std::atomic<float>* ref);
     void update();
     float getTemp();
     float getEstimatedGroupheadTemp(unsigned long timeSinceBoilerReadyMs);
     
-    // Helper to check if the sensor is actually connected
-    bool checkFaults(); 
+    bool checkFaults();
+    uint8_t detectFault(); // blocking one-shot check for use at startup only
 };
 
 #endif

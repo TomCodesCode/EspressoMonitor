@@ -51,14 +51,30 @@ private:
     SystemState*          _currentState    = nullptr;
     SystemState*          _previousState   = nullptr;
     std::atomic<bool>*    _requestLogClear = nullptr;
+    std::atomic<int>*     _musicSelect     = nullptr;
+    std::atomic<int>*     _boilerTarget    = nullptr;
+    std::atomic<int>*     _ghTarget        = nullptr;
+    std::atomic<int>*     _calibTemp       = nullptr;
+    std::atomic<bool>*    _calibAvailable  = nullptr;
+    lv_obj_t*             _spbPlus         = nullptr;
+    lv_obj_t*             _spbMinus        = nullptr;
     uint32_t              _lastSettingsFreeMB  = UINT32_MAX;
     int                   _lastSettingsBrewCount = -1;
 
     // helpers
     void animateWarmupWave();
+    int32_t _warmupArcMin = -1;  // set to actual boiler temp on first updateWarmupData call; -1 = unset
+    bool _doneRatingDirty = false;
+    static void done_rating_slider_cb(lv_event_t* e);
     static void settings_btn_event_cb(lv_event_t* e);
     static void settings_exit_btn_event_cb(lv_event_t* e);
     static void settings_clear_logs_btn_event_cb(lv_event_t* e);
+    static void settings_music_cb(lv_event_t* e);
+    static void settings_boiler_temp_cb(lv_event_t* e);
+    static void settings_gh_temp_cb(lv_event_t* e);
+    static void settings_spinbox_inc_cb(lv_event_t* e);
+    static void settings_spinbox_dec_cb(lv_event_t* e);
+    static void settings_spinbox_calib_cb(lv_event_t* e);
 
     uint32_t lastTickMillis;
 
@@ -71,6 +87,12 @@ public:
 
     void setBrewSession(BrewSession * s, portMUX_TYPE * mux);
     void setSettingsPointers(SystemState* cur, SystemState* prev, std::atomic<bool>* clearFlag);
+    void setMusicSelectPointer(std::atomic<int>* sel);
+    void setMusicDropdown(int index);
+    void setTempTargetPointers(std::atomic<int>* boiler, std::atomic<int>* gh);
+    void setBoilerTargetDropdown(int temp);
+    void setGHTargetDropdown(int temp);
+    void setCalibPointers(std::atomic<int>* temp, std::atomic<bool>* available);
 
     void loadScreen(SystemState state);
     void updateSettingsData(uint32_t freeMB, int brewCount);
@@ -78,6 +100,8 @@ public:
     void updateReadyData(float boilerTemp, float estGroupheadTemp, const char * minutes, const char * seconds);
     void updateBrewData(const char* seconds, const char* tenths, float temp);
     void updateDoneData(const char* seconds, const char* tenths);
+    void showDoneUploading(bool show);
+    int  getDoneRating();
 
     void setSDState(bool isConnected);
     void setWifiState(bool isConnected);

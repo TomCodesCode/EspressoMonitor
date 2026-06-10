@@ -15,15 +15,15 @@
 #include "ServerManager.h"
 #include "secrets.h"
 #include <time.h>
+#include "esp_task_wdt.h"
 
 // PIN DEFINITIONS
 #define CURRENT_PIN 34  // Pin for SCT sensor
 // #define BUTTON_PIN  15  // Pin for the button (InputManager)
 #define BUZZER_PIN 4    // Pin for the passive buzzer. used to transmit the sounds.
 // (use ~117. at the moment- the values change for testing)
-#define BOILER_BREW_TEMP 117    // default desired brewing start temp (of the boiler- the grouphead will always be much cooler)
-#define GROUPHEAD_BREW_TEMP 90 // desired grouphead brew temp (will result in actual textbook 93-97 C brewing temp)
-#define HEAT_SOAK_TIME 812000 // time needed for the E61 grouphead to heat up AFTER the boiler is at temp.
+// Target temps are runtime-adjustable via Settings dropdowns, persisted in NVS.
+// Boiler range 115–125, GH range 85–93 (matching dropdown options in SquareLine UI).
 
 // SYSTEM
 Preferences sysPrefs;
@@ -40,12 +40,15 @@ ServerManager webServer;
 
 SystemState currentState  = WARMUP;
 SystemState previousState = WARMUP;
+bool mockMode = false; // true when sensor fault 0x68 detected at boot (no machine connected)
 unsigned long stateChangeTime = 0; // To track how long we've been in a state
 // If waiting for too long, should check if temp hasn't dropped (i.e.- maybe a smart-home switch turned off by timer)
 unsigned long peripheralsStatusCheckTime = 0;
 unsigned long readyTime = 0;
 unsigned long heatSoakStartTime = 0;
 bool isBoilerReady = false;
+bool calibWindow  = false; // true from boiler-ready through end of READY; set/cleared in state machine
+bool savePending = false;  // true while waiting for Core 0 to finish the SD save
 
 std::atomic<float> sharedBoilerTemp = 20.0;
 std::atomic<float> sharedGroupheadTemp = 50.0;
@@ -55,6 +58,13 @@ std::atomic<bool> csvSaveComplete = false;
 std::atomic<bool> requestLogClear = false;
 std::atomic<uint32_t> sharedSDFreeMB{0};
 std::atomic<int>      sharedBrewCount{0};
+std::atomic<int>      sharedBrewRating{-1};
+std::atomic<int>      sharedMusicSelect{0};  // 0=Helldivers, 1=Doom, 2=Mute
+std::atomic<int>      sharedBoilerTarget{117};
+std::atomic<int>      sharedGHTarget{90};
+std::atomic<int>      sharedCalibTemp{50};    // GH temp observed by user at calibration time
+std::atomic<bool>     calibAvailable{false};  // true during first 60 s of READY (shown in settings)
+std::atomic<float>    sharedTau{592.0f};      // Newton's Law time constant (seconds)
 
 // shared brew history (written by Core 1, read by Core 0)
 BrewSession brewSession;
@@ -87,7 +97,7 @@ void setup() {
     Serial.print("Atomic float lock-free: ");
     Serial.println(std::atomic<float>::is_always_lock_free ? "yes" : "no (spinlock)");
 
-    // Fix 6: create the shared-bus mutex BEFORE the worker task starts.
+    // create the shared-bus mutex BEFORE the worker task starts.
     spiMutex = xSemaphoreCreateMutex();
     if (spiMutex == NULL) {
         Serial.println("FATAL: Could not create SPI mutex!");
@@ -98,8 +108,32 @@ void setup() {
     // give the display a handle to the shared brew history.
     display.setBrewSession(&brewSession, &brewMux);
     display.setSettingsPointers(&currentState, &previousState, &requestLogClear);
+    display.setMusicSelectPointer(&sharedMusicSelect);
+    display.setTempTargetPointers(&sharedBoilerTarget, &sharedGHTarget);
+    display.setCalibPointers(&sharedCalibTemp, &calibAvailable);
+    sensor.setGroupheadTargetRef(&sharedGHTarget);
+    sensor.setTauRef(&sharedTau);
 
     display.init();
+    {
+        sysPrefs.begin("system", true);
+        int   savedMusic   = sysPrefs.getInt("music",        0);
+        int   savedBoiler  = sysPrefs.getInt("boilerTarget", 117);
+        int   savedGH      = sysPrefs.getInt("ghTarget",     90);
+        float savedTau     = sysPrefs.getFloat("tau",        592.0f);
+        sysPrefs.end();
+        if (savedTau < 100.0f || savedTau > 2400.0f) {
+            Serial.printf("NVS tau out of range (%.1f s) — reset to default 592 s\n", savedTau);
+            savedTau = 592.0f;
+        }
+        sharedMusicSelect.store(savedMusic);
+        sharedBoilerTarget.store(savedBoiler);
+        sharedGHTarget.store(savedGH);
+        sharedTau.store(savedTau);
+        display.setMusicDropdown(savedMusic);
+        display.setBoilerTargetDropdown(savedBoiler);
+        display.setGHTargetDropdown(savedGH);
+    }
     display.showStartupScreen();
     display.loadScreen(WARMUP);
     sharedSPI.begin(21, 22, 17, -1);
@@ -112,36 +146,60 @@ void setup() {
     webServer.setDataSources(&latestTemps, &tempMux, &currentState, &sdCard);
     webServer.begin(WIFI_SSID, WIFI_PASSWORD);
 
+    // Extend WDT to 12 s — individual SD card ops (flash erase, wear-leveling)
+    // can legitimately take several seconds; 12 s still catches true hangs.
+    {
+        esp_task_wdt_config_t wdtCfg = { .timeout_ms = 12000, .idle_core_mask = 0, .trigger_panic = true };
+        esp_task_wdt_reconfigure(&wdtCfg);
+    }
+
     xTaskCreatePinnedToCore(
-        coreZeroWorkerTask, 
-        "WorkerTask",       
-        8192,               
-        NULL,               
+        coreZeroWorkerTask,
+        "WorkerTask",
+        16384,
+        NULL,
         1,                  // Priority 1
-        NULL,               
+        NULL,
         0                   // Pin to Core 0
     );
 
     Serial.println("-------------------------------");
     Serial.println("System Initialized.");
+
+    // Check sensor fault after full init. Bits 5+3 (0x28) = REFIN/RTDIN out of range
+    // = nothing connected. Appears as 0x28 early or 0x68 once the chip latches bit 6.
+    // detectFault() uses spiMutex so it's safe to call with the worker task running.
+    {
+        uint8_t fault = sensor.detectFault();
+        if ((fault & 0x28) == 0x28) {
+            mockMode = true;
+            Serial.print("Sensor fault 0x"); Serial.print(fault, HEX);
+            Serial.println(" — mock mode enabled (no machine connected).");
+        } else if (fault != 0) {
+            Serial.print("Sensor fault 0x"); Serial.print(fault, HEX);
+            Serial.println(" — real mode, check wiring.");
+        } else {
+            Serial.println("Sensor OK — real mode.");
+        }
+    }
 }
 
 void coreZeroWorkerTask(void * parameter) {
-    unsigned long prevMeasure = 0;
+    esp_task_wdt_add(NULL);  // register this task with the watchdog (default 5 s timeout)
+    unsigned long lastHeartbeat = 0;
     for(;;) {
-        sensor.update();
+        esp_task_wdt_reset();
 
-        float boilerNow = sensor.getTemp();
-        unsigned long boilerReadyTime = isBoilerReady ? millis() - heatSoakStartTime : 0;
-        float groupheadNow = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
+        if (!mockMode) {
+            sensor.update();
 
-        sharedBoilerTemp = boilerNow;
-        sharedGroupheadTemp = groupheadNow;
+            float boilerNow = sensor.getTemp();
+            unsigned long boilerReadyTime = isBoilerReady ? millis() - heatSoakStartTime : 0;
+            float groupheadNow = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
 
-        // publish both temps as one coherent pair for the web server.
-        // Guard: skip if sensor is disconnected/faulted (returns near-zero).
-        // While mocking, Core 1 writes latestTemps instead (see loop()).
-        if (boilerNow > 5.0) {
+            sharedBoilerTemp    = boilerNow;
+            sharedGroupheadTemp = groupheadNow;
+
             portENTER_CRITICAL(&tempMux);
             latestTemps.boiler    = boilerNow;
             latestTemps.grouphead = groupheadNow;
@@ -149,10 +207,9 @@ void coreZeroWorkerTask(void * parameter) {
         }
 
         // sharedPumpRunning = pumpSensor.isPumpOn();
-        sharedPumpRunning = false;
 
         // SD Card Handshake (Triggered by Core 1)
-        if (currentState == DONE && requestCsvSave) {
+        if (requestCsvSave) {
             // read the finished brew from the shared session and log it.
             portENTER_CRITICAL(&brewMux);
             float dur = brewSession.durationSeconds;
@@ -162,8 +219,9 @@ void coreZeroWorkerTask(void * parameter) {
             if (10 <= dur && dur <= 120) {
                 unsigned long brewId = millis(); // unique ID for both log line and temp file
                 time_t unixTime = getUnixTime(); // 0 if NTP not yet synced; JS uses millis fallback
-                char logLine[80];
-                snprintf(logLine, sizeof(logLine), "%lu,%.1f,%d,%ld", brewId, dur, pts, (long)unixTime);
+                int rating = sharedBrewRating.load();
+                char logLine[96];
+                snprintf(logLine, sizeof(logLine), "%lu,%.1f,%d,%ld,%d", brewId, dur, pts, (long)unixTime, rating);
                 sdCard.appendLog("/brew_log.csv", logLine);
                 // temperatures[] safe without lock: isComplete=true means Core 1 stopped writing
                 sdCard.saveBrewTemps(brewId, brewSession.temperatures, pts);
@@ -189,14 +247,31 @@ void coreZeroWorkerTask(void * parameter) {
             requestLogClear = false;
         }
 
+        esp_task_wdt_reset();
         webServer.handleClient();
+        esp_task_wdt_reset();
+
+        if (millis() - lastHeartbeat > 30000) {
+            lastHeartbeat = millis();
+            Serial.printf("Core0 alive. Free heap: %u B  Min free: %u B\n",
+                          ESP.getFreeHeap(), ESP.getMinFreeHeap());
+        }
 
         // yield to the OS
         delay(10);
     }
 }
 
+void playReadySound() {
+    switch (sharedMusicSelect.load()) {
+        case 1:  sound.playDoom();        break;
+        case 2:  /* mute */               break;
+        default: sound.playHelldivers();  break;
+    }
+}
+
 void loop() {
+    unsigned long frameStart = millis();
     sound.update();
 
     unsigned long currentTime = millis();
@@ -213,182 +288,251 @@ void loop() {
 
     switch (currentState) {
         // CASE: WARMING UP
-        // Waiting for the boiler to reach steaming temp (approx 120C+ when PT100 is attached to the boiler)
         case WARMUP: {
-            // *TESTING*
-            
-            static float lastDrawnBoiler = -1.0;
-            static float lastDrawnGH = -1.0;
-            static unsigned long lastUiUpdate = 0;
-
-            if (abs(mockTempBoiler - lastDrawnBoiler) > 0.1 || abs(mockTempGH - lastDrawnGH) > 0.1) {
-                display.updateWarmupData(mockTempBoiler, mockTempGH);
-                lastDrawnBoiler = mockTempBoiler;
-                lastDrawnGH = mockTempGH;
-            }
-            
-            if (millis() - lastUpdateT > 500) {
-                lastUpdateT = millis();
-                
-                mockTempBoiler += 2.5; // Heat up by 0.5 degrees
-                
-                if (mockTempBoiler > 120.0 && mockTempGH < 40.0) {
-                    mockTempGH = 50.0;
+            if (mockMode) {
+                static float lastDrawnBoiler = -1.0;
+                static float lastDrawnGH     = -1.0;
+                if (abs(mockTempBoiler - lastDrawnBoiler) > 0.1 || abs(mockTempGH - lastDrawnGH) > 0.1) {
+                    display.updateWarmupData(mockTempBoiler, mockTempGH);
+                    lastDrawnBoiler = mockTempBoiler;
+                    lastDrawnGH     = mockTempGH;
                 }
-                if (mockTempGH >= 50.0) {
-                        mockTempGH += 0.5;
+                if (currentTime - lastUpdateT > 500) {
+                    lastUpdateT = currentTime;
+                    mockTempBoiler += 2.5;
+                    if (mockTempBoiler > sharedBoilerTarget.load() && mockTempGH < 40.0) mockTempGH = 50.0;
+                    if (mockTempGH >= 50.0) mockTempGH += 0.5;
+                    if (mockTempGH > sharedGHTarget.load()) {
+                        mockTempGH = 88.0;
+                        timer.start();
+                        currentState = READY;
+                        display.loadScreen(READY);
+                        playReadySound();
+                        readyTime = currentTime;
+                        Serial.println("State: READY (mock)");
+                    }
                 }
-                if (mockTempGH > 91.0) {
-                    mockTempGH = 88;
-                    timer.start();
+            } else {
+                static float lastDrawnBoiler = -1.0;
+                static float lastDrawnGH     = -1.0;
+                float boilerNow = sharedBoilerTemp.load();
+                float ghNow     = sharedGroupheadTemp.load();
+                if (abs(boilerNow - lastDrawnBoiler) > 0.1 || abs(ghNow - lastDrawnGH) > 0.1) {
+                    display.updateWarmupData(boilerNow, ghNow);
+                    lastDrawnBoiler = boilerNow;
+                    lastDrawnGH     = ghNow;
+                }
+                if (sharedBoilerTemp.load() > sharedBoilerTarget.load() && !isBoilerReady) {
+                    isBoilerReady = true;
+                    calibWindow   = true;
+                    heatSoakStartTime = currentTime;
+                    Serial.println("Boiler at temp. Starting grouphead heat soak.");
+                }
+                if (isBoilerReady && sharedGroupheadTemp.load() >= sharedGHTarget.load()) {
                     currentState = READY;
                     isBoilerReady = false;
                     display.loadScreen(READY);
-                    // sound.playDoom();
-                    sound.playHelldivers();
+                    playReadySound();
                     readyTime = currentTime;
+                    timer.start();
                     Serial.println("State: READY");
                 }
-            } // END OF TESTING
-            
-            /*
-            unsigned long boilerReadyTime = isBoilerReady ? currentTime - heatSoakStartTime : 0;
-            display.updateWarmupData(sensor.getTemp(), sensor.getEstimatedGroupheadTemp(boilerReadyTime));
-
-            if (sharedBoilerTemp > BOILER_BREW_TEMP && !isBoilerReady) {
-                isBoilerReady = true;
-                heatSoakStartTime = currentTime;
-                Serial.println("Boiler at temp. Starting 13.5 min Grouphead Heat Soak.");
+                if (sharedPumpRunning) {
+                    isBoilerReady = false;
+                    timer.reset();
+                    timer.start();
+                    currentState = BREWING;
+                    display.loadScreen(BREWING);
+                    Serial.println("State: BREWING (cold start)");
+                }
             }
-
-            if (isBoilerReady && (sharedGroupheadTemp >= GROUPHEAD_BREW_TEMP)) {
-                currentState = READY;
-                isBoilerReady = false;
-                display.loadScreen(READY);
-                sound.playDoom();
-                readyTime = currentTime;
-                Serial.println("State: READY");
-            }
-            // Allow brewing even if cold (Manual Override)
-            if (sharedPumpRunning) {
-                isBoilerReady = false; // if brewing cold- override heat soak
-                timer.start();
-                currentState = BREWING;
-                display.loadScreen(BREWING);
-                Serial.println("State: BREWING");
-            }
-            */
             break;
         }
 
         // CASE: READY
-        // Machine is hot. Waiting for a brew.
-        case READY:{
-
-            /*TESTING*/
+        case READY: {
             auto [minutes, seconds] = timer.getFormattedTime(TimerManager::MINUTES);
-            display.updateReadyData(mockTempBoiler, mockTempGH, minutes, seconds);
-            if (millis() - lastUpdateT > 1000){
-                lastUpdateT = millis();
-                mockTempGH += 0.5;
+            if (mockMode) {
+                display.updateReadyData(mockTempBoiler, mockTempGH, minutes, seconds);
+                if (currentTime - lastUpdateT > 1000) {
+                    lastUpdateT = currentTime;
+                    mockTempGH += 0.5;
+                }
+                if (timer.getSeconds() > 30) {
+                    mockTempBoiler = 108.0;
+                    timer.reset();
+                    timer.start();
+                    currentState = BREWING;
+                    display.loadScreen(BREWING);
+                    Serial.println("State: BREWING (mock)");
+                }
+            } else {
+                static float lastDrawnBoiler = -1.0;
+                static float lastDrawnGH     = -1.0;
+                float boilerNow = sharedBoilerTemp.load();
+                float ghNow     = sharedGroupheadTemp.load();
+                if (abs(boilerNow - lastDrawnBoiler) > 0.1 || abs(ghNow - lastDrawnGH) > 0.1) {
+                    display.updateReadyData(boilerNow, ghNow, minutes, seconds);
+                    lastDrawnBoiler = boilerNow;
+                    lastDrawnGH     = ghNow;
+                }
+                // TODO: phone notification here
+                if (sharedPumpRunning) {
+                    calibWindow = false;
+                    timer.reset();
+                    timer.start();
+                    currentState = BREWING;
+                    display.loadScreen(BREWING);
+                    Serial.println("State: BREWING");
+                }
+                if (currentTime - readyTime > 60000 && sharedBoilerTemp.load() < sharedBoilerTarget.load()) {
+                    calibWindow = false;
+                    currentState = WARMUP;
+                    display.loadScreen(WARMUP);
+                    Serial.println("State: WARMUP (temp dropped)");
+                }
             }
-            if (timer.getSeconds() > 65){
-                mockTempBoiler = 108.0;
-                timer.reset();
-                timer.start();
-                currentState = BREWING;
-                display.loadScreen(BREWING);
-                Serial.println("State: BREWING");
-            }
-            /*
-            display.updateReadyData(sharedBoilerTemp, sharedGroupheadTemp);
-            // ADD LATER HERE: notify on phone / ip.
-            // Transition -> BREWING
-            if (sharedPumpRunning) {
-                timer.reset();
-                timer.start();
-                currentState = BREWING;
-                display.loadScreen(BREWING);
-                Serial.println("State: BREWING");
-            }
-            // Wating for a minute before testing the temp again. If machine got colder for some reason (machine no bueno?).
-            if (currentTime - readyTime > 60000 && sharedBoilerTemp < BOILER_BREW_TEMP) {
-                currentState = WARMUP;
-                display.loadScreen(WARMUP);
-                Serial.println("WARMUP: Temp dropped while waiting");
-                
-            }*/
             break;
         }
 
         // CASE: BREWING
-        // Pump is running; Timer is counting.
-        case BREWING:{
-            /*TESTING*/
-            timer.start();
+        case BREWING: {
             auto [seconds, tenths] = timer.getFormattedTime(TimerManager::SECONDS);
-            display.updateBrewData(seconds, tenths, mockTempBoiler);
-            if (currentTime - lastUpdateT > 100) {
-                lastUpdateT = currentTime;
-                mockTempBoiler -= 0.1;
+            if (mockMode) {
+                timer.start();
+                display.updateBrewData(seconds, tenths, mockTempBoiler);
+                if (currentTime - lastUpdateT > 100) {
+                    lastUpdateT = currentTime;
+                    mockTempBoiler -= 0.1;
+                }
+                if (timer.getSeconds() > 25.0) {
+                    timer.stop();
+                    stateChangeTime = currentTime;
+                    portENTER_CRITICAL(&brewMux);
+                    brewSession.durationSeconds = timer.getSeconds();
+                    brewSession.isComplete = true;
+                    portEXIT_CRITICAL(&brewMux);
+                    savePending = false;
+                    currentState = DONE;
+                    sharedBoilerTemp = mockTempBoiler;
+                    display.loadScreen(DONE);
+                    Serial.println("State: DONE (mock)");
+                }
+            } else {
+                display.updateBrewData(seconds, tenths, sharedBoilerTemp.load());
+                if (!sharedPumpRunning) {
+                    timer.stop();
+                    stateChangeTime = currentTime;
+                    portENTER_CRITICAL(&brewMux);
+                    brewSession.durationSeconds = timer.getSeconds();
+                    brewSession.isComplete = true;
+                    portEXIT_CRITICAL(&brewMux);
+                    savePending = false;
+                    currentState = DONE;
+                    display.loadScreen(DONE);
+                    Serial.println("State: DONE");
+                }
             }
-            if (timer.getSeconds() > 25.0){
-                timer.stop();
-                stateChangeTime = currentTime; // Record when we finished
-
-                // Fix 4: finalize the shared session before signalling the save.
-                portENTER_CRITICAL(&brewMux);
-                brewSession.durationSeconds = timer.getSeconds();
-                brewSession.isComplete = true;
-                portEXIT_CRITICAL(&brewMux);
-
-                requestCsvSave = true; // Trigger core 0 to start saving.
-                csvSaveComplete = false;
-                currentState = DONE;
-                sharedBoilerTemp = mockTempBoiler;
-                display.loadScreen(DONE);
-                Serial.println("State: DONE");
-            }
-            /*
-            display.updateBrewData(timer.getSeconds(), sharedBoilerTemp);
-
-            // Transition -> DONE (Pump Stopped)
-            if (!sharedPumpRunning) {
-                timer.stop();
-                stateChangeTime = currentTime; // Record when we finished
-                requestCsvSave = true; // Trigger core 0 to start saving.
-                csvSaveComplete = false;
-                currentState = DONE;
-                display.loadScreen(DONE);
-                Serial.println("State: DONE");
-            }
-            */
             break;
         }
 
         // CASE: SETTINGS
         // UI overlay. Machine state is frozen; Core 0 keeps reading sensors.
         case SETTINGS:{
+            // Calibration window: open from boiler-ready (WARMUP) through end of READY
+            calibAvailable.store(calibWindow);
+
             display.updateSettingsData(sharedSDFreeMB.load(), sharedBrewCount.load());
+            static int           lastSavedMusic  = -1;
+            static int           lastSavedBoiler = -1;
+            static int           lastSavedGH     = -1;
+            static int           lastCalibTemp   = -1;
+            static bool          nvsPending      = false;
+            static unsigned long lastChangeTime  = 0;
+            int curMusic  = sharedMusicSelect.load();
+            int curBoiler = sharedBoilerTarget.load();
+            int curGH     = sharedGHTarget.load();
+            int curCalib  = sharedCalibTemp.load();
+            if (curMusic != lastSavedMusic || curBoiler != lastSavedBoiler || curGH != lastSavedGH) {
+                lastChangeTime = millis();
+                nvsPending = true;
+            }
+            if (nvsPending && millis() - lastChangeTime > 1000) {
+                nvsPending = false;
+                sysPrefs.begin("system", false);
+                sysPrefs.putInt("music",        curMusic);
+                sysPrefs.putInt("boilerTarget", curBoiler);
+                sysPrefs.putInt("ghTarget",     curGH);
+                sysPrefs.end();
+                lastSavedMusic  = curMusic;
+                lastSavedBoiler = curBoiler;
+                lastSavedGH     = curGH;
+            }
+            if (curCalib != lastCalibTemp && calibAvailable.load()) {
+                lastCalibTemp = curCalib;
+                // T_sel = current GH temp observed on external thermometer (spinbox)
+                // T_0   = assumed GH temp when boiler first reached target (hardcoded 50°C)
+                // T_inf = Newton's Law asymptote (GH target + 14)
+                float T_sel = (float)curCalib;
+                float T_0   = 50.0f;
+                float T_inf = (float)sharedGHTarget.load() + 14.0f;
+                float t     = (millis() - heatSoakStartTime) / 1000.0f;
+                if (t > 0.0f && T_sel > T_0 && T_sel < T_inf) {
+                    float newTau = -t / log((T_inf - T_sel) / (T_inf - T_0));
+                    if (newTau >= 100.0f && newTau <= 2400.0f) {
+                        sharedTau.store(newTau);
+                        sysPrefs.begin("system", false);
+                        sysPrefs.putFloat("tau", newTau);
+                        sysPrefs.end();
+                        Serial.printf("Heatsoak calibrated: tau = %.1f s (T_sel=%.0f C, t=%.0f s)\n",
+                                      newTau, T_sel, t);
+                    } else {
+                        Serial.printf("Calibration rejected: tau = %.1f s out of range (100–2400 s)\n", newTau);
+                    }
+                }
+            }
             break;
         }
 
         // CASE: DONE
-        // Shot finished. Show the final time for a few seconds.
+        // Shot finished. Show the final time, then save to SD (with uploading label),
+        // then transition once the save completes.
         case DONE:{
             auto [seconds, tenths] = timer.getFormattedTime(TimerManager::SECONDS);
             display.updateDoneData(seconds, tenths);
+
             if (sharedPumpRunning) {
+                // New brew started before we saved — save in the background,
+                // transition immediately (uploading label won't be seen, that's fine).
+                if (!savePending) {
+                    sharedBrewRating.store(display.getDoneRating());
+                    requestCsvSave  = true;
+                    csvSaveComplete = false;
+                }
+                savePending = false;
                 timer.reset();
                 timer.start();
                 currentState = BREWING;
                 display.loadScreen(BREWING);
                 Serial.println("BREWING (again)");
                 break;
-            } else {
-                if (currentTime - stateChangeTime > 10000){
-                    if (sharedBoilerTemp >= BOILER_BREW_TEMP) {
+            }
+
+            if (currentTime - stateChangeTime > 10000) {
+                if (!savePending) {
+                    // Trigger the save and show the uploading label.
+                    sharedBrewRating.store(display.getDoneRating());
+                    requestCsvSave  = true;
+                    csvSaveComplete = false;
+                    savePending = true;
+                    display.showDoneUploading(true);
+                } else if (csvSaveComplete) {
+                    // Save finished — hide label and leave.
+                    savePending = false;
+                    display.showDoneUploading(false);
+                    if (sharedBoilerTemp >= sharedBoilerTarget.load()) {
                         currentState = READY;
+                        readyTime = currentTime;
                         display.loadScreen(READY);
                         Serial.println("READY- still warm enough");
                     } else {
@@ -397,19 +541,23 @@ void loop() {
                         Serial.println("WARMUP");
                     }
                 }
+                // else: save in progress, stay on Done with label visible
             }
             break;
         }
     }
-    // *TESTING* publish mock temps to web server; remove when real sensors are active.
-    portENTER_CRITICAL(&tempMux);
-    latestTemps.boiler    = mockTempBoiler;
-    latestTemps.grouphead = mockTempGH;
-    portEXIT_CRITICAL(&tempMux);
+    if (mockMode) {
+        portENTER_CRITICAL(&tempMux);
+        latestTemps.boiler    = mockTempBoiler;
+        latestTemps.grouphead = mockTempGH;
+        portEXIT_CRITICAL(&tempMux);
+    }
 
     display.update();
 
-    delay(33); // FreeRTOS watchdog timer anti starvation
+    unsigned long elapsed = millis() - frameStart;
+    if (elapsed < 33) delay(33 - elapsed);
+    else delay(1); // always yield to FreeRTOS scheduler
 }
 
 // Returns UTC Unix timestamp if NTP has synced, 0 otherwise.

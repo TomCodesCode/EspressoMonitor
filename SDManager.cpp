@@ -1,4 +1,5 @@
 #include "SDManager.h"
+#include "esp_task_wdt.h"
 // testing.
 // TODO: CSV files for server.
 SDManager::SDManager(SPIClass* sharedSPI) {
@@ -103,11 +104,13 @@ void SDManager::clearLogs() {
     File root = SD.open("/");
     File entry = root.openNextFile();
     while (entry) {
+        esp_task_wdt_reset();
         String name = String(entry.name());
         entry.close();
         if (name.startsWith("/brew_") && name.endsWith(".csv") && name != "/brew_log.csv") {
             SD.remove(name.c_str());
         }
+        esp_task_wdt_reset();
         entry = root.openNextFile();
     }
     root.close();

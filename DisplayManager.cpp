@@ -1,3 +1,5 @@
+#include "HardwareSerial.h"
+#include "misc/lv_types.h"
 #include "widgets/label/lv_label.h"
 #include "core/lv_obj.h"
 #include "DisplayManager.h"
@@ -58,16 +60,42 @@ void DisplayManager::init() {
 
     // Done screen
     lv_obj_add_flag(ui_DoneLabelUploading, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(ui_DoneSliderRate, done_rating_slider_cb, LV_EVENT_RELEASED, this);
 
-    // Settings button on every screen → open settings
+    // Settings button on Warmup and Ready only
     lv_obj_add_event_cb(ui_WarmupBtnSettings, settings_btn_event_cb,    LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(ui_ReadyBtnSettings,  settings_btn_event_cb,    LV_EVENT_CLICKED, this);
-    lv_obj_add_event_cb(ui_BrewBtnSettings,   settings_btn_event_cb,    LV_EVENT_CLICKED, this);
-    lv_obj_add_event_cb(ui_DoneBtnSettings,   settings_btn_event_cb,    LV_EVENT_CLICKED, this);
+    lv_obj_add_flag(ui_BrewBtnSettings, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ui_DoneBtnSettings, LV_OBJ_FLAG_HIDDEN);
 
     // Settings screen buttons
-    lv_obj_add_event_cb(ui_SettingsButtonExit,      settings_exit_btn_event_cb,       LV_EVENT_CLICKED, this);
-    lv_obj_add_event_cb(ui_SettingsButtonClearLogs, settings_clear_logs_btn_event_cb, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(ui_SettingsButtonExit,      settings_exit_btn_event_cb,       LV_EVENT_CLICKED,        this);
+    lv_obj_add_event_cb(ui_SettingsButtonClearLogs, settings_clear_logs_btn_event_cb, LV_EVENT_CLICKED,        this);
+    lv_obj_add_event_cb(ui_SettingsDropdownMusicSelect,  settings_music_cb,       LV_EVENT_VALUE_CHANGED, this);
+    lv_obj_add_event_cb(ui_SettingsDropdownBoilerTemp,   settings_boiler_temp_cb, LV_EVENT_VALUE_CHANGED, this);
+    lv_obj_add_event_cb(ui_SettingsDropdownGHTemp,       settings_gh_temp_cb,     LV_EVENT_VALUE_CHANGED, this);
+
+    // Heatsoak calibration spinbox — range 40–70°C, integer display
+    lv_spinbox_set_range(ui_SettingsSpinboxHeatsoak, 40, 70);
+    lv_spinbox_set_digit_format(ui_SettingsSpinboxHeatsoak, 2, 0);
+    lv_spinbox_set_value(ui_SettingsSpinboxHeatsoak, 50);
+    lv_obj_set_width(ui_SettingsSpinboxHeatsoak, 170);
+    lv_obj_add_flag(ui_SettingsSpinboxHeatsoak, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(ui_SettingsSpinboxHeatsoak, settings_spinbox_calib_cb, LV_EVENT_VALUE_CHANGED, this);
+
+    lv_obj_t* parent = lv_obj_get_parent(ui_SettingsSpinboxHeatsoak);
+    _spbMinus = lv_button_create(parent);
+    _spbPlus  = lv_button_create(parent);
+    lv_obj_set_size(_spbMinus, 35, 35);
+    lv_obj_set_size(_spbPlus,  35, 35);
+    lv_obj_align_to(_spbMinus, ui_SettingsSpinboxHeatsoak, LV_ALIGN_OUT_LEFT_MID,  -5, 0);
+    lv_obj_align_to(_spbPlus,  ui_SettingsSpinboxHeatsoak, LV_ALIGN_OUT_RIGHT_MID,  5, 0);
+    lv_obj_center(lv_label_create(_spbMinus)); lv_label_set_text(lv_obj_get_child(_spbMinus, 0), "-");
+    lv_obj_center(lv_label_create(_spbPlus));  lv_label_set_text(lv_obj_get_child(_spbPlus,  0), "+");
+    lv_obj_add_flag(_spbMinus, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(_spbPlus,  LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(_spbMinus, settings_spinbox_dec_cb, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(_spbPlus,  settings_spinbox_inc_cb, LV_EVENT_CLICKED, this);
 
     Serial.println("LVGL v9 Display Manager Initialized.");
 }
@@ -166,7 +194,10 @@ void DisplayManager::my_touchpad_read(lv_indev_t * indev, lv_indev_data_t * data
 
 void DisplayManager::loadScreen(SystemState state) {
     switch(state) {
-        case WARMUP:  lv_screen_load(ui_ScreenWarmup); break;
+        case WARMUP:
+            lv_screen_load(ui_ScreenWarmup);
+            _warmupArcMin = -1;
+            break;
         case READY:   lv_screen_load(ui_ScreenReady);  break;
         case BREWING:{
             lv_screen_load(ui_ScreenBrew);
@@ -180,13 +211,14 @@ void DisplayManager::loadScreen(SystemState state) {
             }
             lastChartUpdate = millis();
 
-            lv_chart_set_point_count(ui_BrewChart, BREW_MAX_POINTS); // 30 seconds
+            lv_chart_set_point_count(ui_BrewChart, 2); // grows each second with actual data
             lv_chart_set_all_value(ui_BrewChart, brew_ser, LV_CHART_POINT_NONE);
             break;
         }
         case SETTINGS:{
             lv_screen_load(ui_ScreenSettings);
             lv_label_set_text(ui_SettingsLabelFWVerNum, "1.0");
+            if (_calibTemp) lv_spinbox_set_value(ui_SettingsSpinboxHeatsoak, _calibTemp->load());
             // Reset cache so labels refresh with new SD stats from Core 0
             _lastSettingsFreeMB    = UINT32_MAX;
             _lastSettingsBrewCount = -1;
@@ -194,6 +226,9 @@ void DisplayManager::loadScreen(SystemState state) {
         }
         case DONE:{
             lv_screen_load(ui_ScreenDone);
+            lv_slider_set_value(ui_DoneSliderRate, 4, LV_ANIM_OFF);
+            _doneRatingDirty = false;
+            lv_obj_add_flag(ui_DoneLabelUploading, LV_OBJ_FLAG_HIDDEN);
 
             // Grab the point count once; the array is no longer being written
             // (brewing has stopped) so we can copy it without holding the lock.
@@ -222,6 +257,15 @@ void DisplayManager::loadScreen(SystemState state) {
     }
 }
 
+int DisplayManager::getDoneRating() {
+    return _doneRatingDirty ? (int)lv_slider_get_value(ui_DoneSliderRate) : -1;
+}
+
+void DisplayManager::done_rating_slider_cb(lv_event_t* e) {
+    DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
+    dm->_doneRatingDirty = true;
+}
+
 void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) {
     char boilerStr[16];
     snprintf(boilerStr, sizeof(boilerStr), "%.1f C", boilerTemp);
@@ -244,10 +288,12 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
     }
 
     // Thermodynamics Math (Clamp the temperature)
-    const float roomTemp = 20.0;
-    const float maxBoilerTemp = 117.0;
-    const float minTemp = 40.0;
-    const float maxTemp = 90.0;
+    const float maxBoilerTemp = _boilerTarget ? (float)_boilerTarget->load() : 117.0f;
+    const float minTemp       = 40.0;
+    const float maxTemp       = _ghTarget     ? (float)_ghTarget->load()     : 90.0f;
+
+    if (_warmupArcMin < 0) _warmupArcMin = (int32_t)boilerTemp;
+    lv_arc_set_range(ui_WarmupArcBoiler, _warmupArcMin, (int32_t)maxBoilerTemp);
     
     float clampedTemp = estGroupheadTemp;
     if (clampedTemp < minTemp) clampedTemp = minTemp;
@@ -255,7 +301,7 @@ void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) 
 
     // Calculate how "full" the tank should be (0.0 to 1.0)
     float heatPercentage = (clampedTemp - minTemp) / (maxTemp - minTemp);
-    float boilerHeatPercentage = (boilerTemp - roomTemp) / (maxBoilerTemp - roomTemp);
+    float boilerHeatPercentage = (boilerTemp - _warmupArcMin) / (maxBoilerTemp - _warmupArcMin);
     
     int waveHeight = (screenHeight + 18) / 2; // (screen height + wave height) / 2
 
@@ -297,7 +343,9 @@ void DisplayManager::updateReadyData(float boilerTemp, float estGroupheadTemp, c
         snprintf(tempStr, sizeof(tempStr), "%.1f C", estGroupheadTemp);
     }
 
-    if (estGroupheadTemp <= 91){
+    // recommend a hot flush at 1.03 * target GH temp
+    int maxWantedGHTemp = (int)((_ghTarget ? _ghTarget->load() : 91) * 1.03f);
+    if (estGroupheadTemp <= maxWantedGHTemp){
         lv_obj_add_flag(ui_ReadyLabelFlush, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_remove_flag(ui_ReadyLabelFlush, LV_OBJ_FLAG_HIDDEN);
@@ -330,9 +378,15 @@ void DisplayManager::updateBrewData(const char* seconds, const char* tenths, flo
             portEXIT_CRITICAL(sessionMux);
         }
 
-        // Shift the chart safely
-        if (brew_ser != NULL) {
-            lv_chart_set_next_value(ui_BrewChart, brew_ser, (int)temp);
+        // Resize chart to actual sample count so X axis matches brew duration
+        if (brew_ser != nullptr && session != nullptr) {
+            int n = session->pointCount;
+            int displayN = (n < 2) ? 2 : n;
+            lv_chart_set_point_count(ui_BrewChart, displayN);
+            lv_chart_set_all_value(ui_BrewChart, brew_ser, LV_CHART_POINT_NONE);
+            for (int i = 0; i < n; i++) {
+                lv_chart_set_next_value(ui_BrewChart, brew_ser, (int)session->temperatures[i]);
+            }
         }
     }
 }
@@ -349,6 +403,15 @@ void DisplayManager::setSettingsPointers(SystemState* cur, SystemState* prev, st
 }
 
 void DisplayManager::updateSettingsData(uint32_t freeMB, int brewCount) {
+    bool calib = _calibAvailable && _calibAvailable->load();
+    auto setHidden = [](lv_obj_t* o, bool hide) {
+        if (!o) return;
+        hide ? lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN) : lv_obj_remove_flag(o, LV_OBJ_FLAG_HIDDEN);
+    };
+    setHidden(ui_SettingsSpinboxHeatsoak, !calib);
+    setHidden(_spbPlus,  !calib);
+    setHidden(_spbMinus, !calib);
+
     if (freeMB != _lastSettingsFreeMB) {
         char buf[16];
         snprintf(buf, sizeof(buf), "%lu MB", freeMB);
@@ -384,12 +447,79 @@ void DisplayManager::settings_clear_logs_btn_event_cb(lv_event_t* e) {
     if (dm->_requestLogClear) *dm->_requestLogClear = true;
 }
 
+void DisplayManager::settings_music_cb(lv_event_t* e) {
+    DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
+    if (dm->_musicSelect) {
+        dm->_musicSelect->store((int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+    }
+}
+
+void DisplayManager::setMusicSelectPointer(std::atomic<int>* sel) {
+    _musicSelect = sel;
+}
+
+void DisplayManager::setMusicDropdown(int index) {
+    lv_dropdown_set_selected(ui_SettingsDropdownMusicSelect, (uint16_t)index);
+}
+
+void DisplayManager::setTempTargetPointers(std::atomic<int>* boiler, std::atomic<int>* gh) {
+    _boilerTarget = boiler;
+    _ghTarget     = gh;
+}
+
+void DisplayManager::setBoilerTargetDropdown(int temp) {
+    lv_dropdown_set_selected(ui_SettingsDropdownBoilerTemp, (uint16_t)(temp - 115));
+}
+
+void DisplayManager::setGHTargetDropdown(int temp) {
+    lv_dropdown_set_selected(ui_SettingsDropdownGHTemp, (uint16_t)(temp - 85));
+}
+
+void DisplayManager::settings_boiler_temp_cb(lv_event_t* e) {
+    DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
+    if (dm->_boilerTarget)
+        dm->_boilerTarget->store(115 + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+    Serial.print("new boiler temp target: ");
+    Serial.println(115 + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+}
+
+void DisplayManager::settings_gh_temp_cb(lv_event_t* e) {
+    DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
+    if (dm->_ghTarget)
+        dm->_ghTarget->store(85 + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+    Serial.print("new grouphead temp target: ");
+    Serial.println(85 + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+}
+
+void DisplayManager::settings_spinbox_inc_cb(lv_event_t* e) {
+    lv_spinbox_increment(ui_SettingsSpinboxHeatsoak);
+}
+
+void DisplayManager::settings_spinbox_dec_cb(lv_event_t* e) {
+    lv_spinbox_decrement(ui_SettingsSpinboxHeatsoak);
+}
+
+void DisplayManager::settings_spinbox_calib_cb(lv_event_t* e) {
+    DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
+    if (dm->_calibTemp)
+        dm->_calibTemp->store((int)lv_spinbox_get_value(ui_SettingsSpinboxHeatsoak));
+}
+
+void DisplayManager::setCalibPointers(std::atomic<int>* temp, std::atomic<bool>* available) {
+    _calibTemp      = temp;
+    _calibAvailable = available;
+}
+
 void DisplayManager::updateDoneData(const char* seconds, const char* tenths) {
     lv_label_set_text(ui_DoneLabelTimeTenths, tenths);
     lv_label_set_text(ui_DoneLabelTimeSeconds, seconds);
+}
 
-    if(this->WifiStatus){
+void DisplayManager::showDoneUploading(bool show) {
+    if (show) {
         lv_obj_remove_flag(ui_DoneLabelUploading, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(ui_DoneLabelUploading, LV_OBJ_FLAG_HIDDEN);
     }
 }
 

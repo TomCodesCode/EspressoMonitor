@@ -5,13 +5,10 @@
 #include <SPI.h>
 
 // VBM Domobar Junior is an E61 machine, so after the boiler reaches its target temp, the brass needs to heat up the grouphead (takes 11 - 15 minutes usually)
-const float targetGroupheadTemp = 90.0 + 14.0; // 90c target + 14 to account for calculation asymptote
+// targetGroupheadTemp is computed dynamically from _ghTargetRef (+14 for asymptote offset); default 90°C
 const float initialGroupheadTemp = 50.0; // assumed grouphead temp when boiler is ready
 
-// The "sluggishness" factor of the brass. The calculation used Newton's Law of Heating to estimate grouphead temp.
-// calculation: 13.5 minutes to heat the grouphead after boiler is at temp. using Newton's Law of Heating, we never reach the max asymptote (91c target),
-// so we calculate for tau: 91 = 105 - (105 - 50)*e^(-812/tau) -> tau = ~592.
-const float tau = 592.0;
+// tau (time constant) is set dynamically via _tauRef. default 592 s ≈ 13.5 min heat soak
 
 SensorManager::SensorManager(SPIClass* sharedSPI) {
     maxSPI = sharedSPI;
@@ -36,6 +33,14 @@ void SensorManager::init() {
 
 void SensorManager::setSpiMutex(SemaphoreHandle_t m) {
     spiMutex = m;
+}
+
+void SensorManager::setGroupheadTargetRef(std::atomic<int>* ref) {
+    _ghTargetRef = ref;
+}
+
+void SensorManager::setTauRef(std::atomic<float>* ref) {
+    _tauRef = ref;
 }
 
 void SensorManager::update() {
@@ -87,14 +92,24 @@ void SensorManager::update() {
 #include <math.h>
 
 float SensorManager::getEstimatedGroupheadTemp(unsigned long timeSinceBoilerReadyMs) {
-    // Convert elapsed time to seconds
-    float timeSeconds = timeSinceBoilerReadyMs / 1000.0;
-
-    // Newton's law of heating / cooling
-    float estimatedTemp = targetGroupheadTemp - (targetGroupheadTemp - initialGroupheadTemp) * exp(-timeSeconds / tau);
-
-    return estimatedTemp;
+    float target  = (_ghTargetRef ? (float)_ghTargetRef->load() : 90.0f) + 14.0f;
+    float tau     = _tauRef ? _tauRef->load() : 592.0f;
+    float elapsed = timeSinceBoilerReadyMs / 1000.0f;
+    return target - (target - initialGroupheadTemp) * exp(-elapsed / tau);
 }
 
 float SensorManager::getTemp() { return currentTemp; }
 bool SensorManager::checkFaults() { return (thermo->readFault() != 0); }
+
+uint8_t SensorManager::detectFault() {
+    // Synchronous measurement + fault read. Only safe to call before the worker
+    // task starts (no contention on the bus, so the 110ms delay is fine).
+    if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
+    thermo->enableBias(true);
+    delay(110);
+    uint8_t fault = thermo->readFault();
+    thermo->clearFault();
+    thermo->enableBias(false);
+    if (spiMutex) xSemaphoreGive(spiMutex);
+    return fault;
+}

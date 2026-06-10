@@ -7,6 +7,7 @@ static const char INDEX_HTML[] = R"HTML(
 <html>
 <head>
 <title>Espresso Monitor</title>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 body{font-family:sans-serif;max-width:520px;margin:20px auto;padding:0 16px;color:#111}
@@ -39,7 +40,7 @@ th{color:#888;font-weight:600}
 </div>
 <h2>Brew Log <button onclick="loadLog()">Refresh</button></h2>
 <table>
-<thead><tr><th>#</th><th>Time</th><th>Duration (s)</th><th>Pts</th><th></th></tr></thead>
+<thead><tr><th>#</th><th>Time</th><th>Duration (s)</th><th>Pts</th><th>Rating</th><th></th></tr></thead>
 <tbody id="log"><tr><td colspan="5">Loading...</td></tr></tbody>
 </table>
 <div id="modal">
@@ -69,14 +70,18 @@ function loadLog(){
     var rows=t.trim().split('\n').filter(function(l){return l.length>0;});
     var tb=document.getElementById('log');
     if(!rows.length){tb.innerHTML='<tr><td colspan="5">No brews logged yet.</td></tr>';return;}
+    rows.reverse();
     tb.innerHTML=rows.map(function(r,i){
       var p=r.split(',');
       var ms=parseInt(p[0]),dur=parseFloat(p[1]),pts=parseInt(p[2]),unix=p.length>=4?parseInt(p[3]):0;
+      var rating=p.length>=5?parseInt(p[4]):-1;
+      var ratingStr=rating>=0?rating+'/10':'-';
       return '<tr>'
-        +'<td>'+(i+1)+'</td>'
+        +'<td>'+(rows.length-i)+'</td>'
         +'<td>'+fmtTime(ms,unix)+'</td>'
         +'<td>'+dur.toFixed(1)+'</td>'
         +'<td>'+pts+'</td>'
+        +'<td>'+ratingStr+'</td>'
         +'<td><button class="vbtn" onclick="showChart('+ms+','+dur.toFixed(1)+')">View</button></td>'
         +'</tr>';
     }).join('');
@@ -109,7 +114,7 @@ function showChart(id,dur){
   }).catch(function(){alert('Chart data not on SD card.');});
 }
 function closeChart(){document.getElementById('modal').className='';}
-poll();loadLog();setInterval(poll,1000);
+poll();loadLog();setInterval(poll,5000);
 </script>
 </body>
 </html>
@@ -120,8 +125,11 @@ ServerManager::ServerManager() : _server(80) {}
 void ServerManager::begin(const char* ssid, const char* password) {
     _ssid     = ssid;
     _password = password;
+    WiFi.setAutoReconnect(true);
+    WiFi.setSleep(false);   // disable modem sleep- keeps the connection stable
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
+    _reconnectAt = millis() + 60000UL;  // arm fallback from boot, not just after disconnect
     Serial.print("WiFi connecting to: ");
     Serial.println(ssid);
 }
@@ -137,13 +145,38 @@ void ServerManager::setDataSources(TempSnapshot* temps, portMUX_TYPE* tempMux,
 void ServerManager::handleClient() {
     if (!_ssid) return;
 
-    if (!_started && WiFi.status() == WL_CONNECTED) {
-        tryStartServer();
+    bool connected = (WiFi.status() == WL_CONNECTED);
+
+    if (!connected && _started) {
+        _server.stop();
+        _started = false;
+        _reconnectAt = millis() + 60000UL;  // 1-min fallback — let autoReconnect do the work first
+        Serial.println("WiFi lost — server stopped.");
+        return;
     }
 
-    if (_started) {
-        _server.handleClient();
+    if (!connected) {
+        // setAutoReconnect(true) handles normal reconnection.
+        // Only force WiFi.begin() if it has truly stalled for 5 minutes.
+        if (_reconnectAt > 0 && millis() >= _reconnectAt) {
+            Serial.println("WiFi: forcing reconnect after 1-min stall.");
+            WiFi.begin(_ssid, _password);
+            _reconnectAt = millis() + 60000UL;
+        }
+        return;
     }
+
+    // WiFi is up
+    if (_reconnectAt > 0) {
+        Serial.println("WiFi reconnected.");
+        _reconnectAt = 0;
+    }
+    if (!_started) {
+        tryStartServer();
+        return;
+    }
+
+    _server.handleClient();
 }
 
 bool ServerManager::isConnected() {
@@ -151,16 +184,20 @@ bool ServerManager::isConnected() {
 }
 
 void ServerManager::tryStartServer() {
-    // Sync time via NTP (UTC); JS converts to local timezone in the browser.
-    configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
+    delay(500);  // let TCP stack settle after WiFi (re)connect before binding port 80
+    if (!_routesRegistered) {
+        configTime(0, 0, "pool.ntp.org", "time.cloudflare.com");
+        _server.on("/",          [this]() { handleRoot(); });
+        _server.on("/api/temps", [this]() { handleApiTemps(); });
+        _server.on("/api/log",   [this]() { handleApiLog(); });
+        _server.on("/api/brew",  [this]() { handleApiBrewTemps(); });
+        _routesRegistered = true;
+    }
 
+    MDNS.end();
     if (MDNS.begin("espresso")) {
         Serial.println("mDNS started: espresso.local");
     }
-    _server.on("/",          [this]() { handleRoot(); });
-    _server.on("/api/temps", [this]() { handleApiTemps(); });
-    _server.on("/api/log",   [this]() { handleApiLog(); });
-    _server.on("/api/brew",  [this]() { handleApiBrewTemps(); });
     _server.begin();
     _started = true;
     Serial.print("Web server started. IP: ");
@@ -168,7 +205,9 @@ void ServerManager::tryStartServer() {
 }
 
 void ServerManager::handleRoot() {
-    _server.send(200, "text/html", INDEX_HTML);
+    _server.sendHeader("Connection", "close");
+    _server.send_P(200, "text/html", INDEX_HTML);
+    _server.client().setTimeout(2);
 }
 
 void ServerManager::handleApiTemps() {
@@ -183,30 +222,42 @@ void ServerManager::handleApiTemps() {
     snprintf(json, sizeof(json),
              "{\"boiler\":%.1f,\"grouphead\":%.1f,\"state\":\"%s\"}",
              snap.boiler, snap.grouphead, stateToString(st));
+    _server.sendHeader("Connection", "close");
     _server.send(200, "application/json", json);
+    _server.client().setTimeout(2);
 }
 
 void ServerManager::handleApiLog() {
     if (!_sd || !_sd->isInitialized()) {
+        _server.sendHeader("Connection", "close");
         _server.send(503, "text/plain", "SD not ready");
+        _server.client().setTimeout(2);
         return;
     }
+    _server.sendHeader("Connection", "close");
     _server.send(200, "text/plain", _sd->readLogString("/brew_log.csv"));
+    _server.client().setTimeout(2);
 }
 
 void ServerManager::handleApiBrewTemps() {
     String idStr = _server.arg("id");
     if (idStr.isEmpty() || !_sd || !_sd->isInitialized()) {
+        _server.sendHeader("Connection", "close");
         _server.send(400, "text/plain", "missing id or SD not ready");
+        _server.client().setTimeout(2);
         return;
     }
     unsigned long brewId = strtoul(idStr.c_str(), nullptr, 10);
     String data = _sd->readBrewTempsString(brewId);
     if (data.isEmpty()) {
+        _server.sendHeader("Connection", "close");
         _server.send(404, "text/plain", "brew not found");
+        _server.client().setTimeout(2);
         return;
     }
+    _server.sendHeader("Connection", "close");
     _server.send(200, "text/plain", data);
+    _server.client().setTimeout(2);
 }
 
 const char* ServerManager::stateToString(SystemState s) {

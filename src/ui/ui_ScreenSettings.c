@@ -11,6 +11,7 @@ lv_obj_t * ui_SettingsDropdownGHTemp = NULL;
 lv_obj_t * ui_SettingsDropdownBoilerTemp = NULL;
 lv_obj_t * ui_SettingsDropdownMusicSelect = NULL;
 lv_obj_t * ui_SettingsButtonCalibrateSoakTime = NULL;
+lv_obj_t * ui_SettingsSpinboxHeatsoak = NULL;
 lv_obj_t * ui_SettingsLabelCalibrateSoakTime = NULL;
 lv_obj_t * ui_SettingsButtonClearLogs = NULL;
 lv_obj_t * ui_SettingsLabelClearLogs = NULL;
@@ -94,7 +95,7 @@ void ui_ScreenSettings_screen_init(void)
     lv_obj_set_x(ui_SettingsButtonCalibrateSoakTime, -30);
     lv_obj_set_y(ui_SettingsButtonCalibrateSoakTime, 70);
     lv_obj_set_align(ui_SettingsButtonCalibrateSoakTime, LV_ALIGN_CENTER);
-    lv_obj_add_flag(ui_SettingsButtonCalibrateSoakTime, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+    lv_obj_add_flag(ui_SettingsButtonCalibrateSoakTime, LV_OBJ_FLAG_HIDDEN | LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
     lv_obj_remove_flag(ui_SettingsButtonCalibrateSoakTime, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_radius(ui_SettingsButtonCalibrateSoakTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_bg_color(ui_SettingsButtonCalibrateSoakTime, lv_color_hex(0x000000), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -103,12 +104,35 @@ void ui_ScreenSettings_screen_init(void)
     lv_obj_set_style_outline_width(ui_SettingsButtonCalibrateSoakTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_pad(ui_SettingsButtonCalibrateSoakTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
 
-    ui_SettingsLabelCalibrateSoakTime = lv_label_create(ui_SettingsButtonCalibrateSoakTime);
+    ui_SettingsSpinboxHeatsoak = lv_spinbox_create(ui_SettingsPanelMain);
+    lv_obj_set_width(ui_SettingsSpinboxHeatsoak, 240);
+    lv_obj_set_height(ui_SettingsSpinboxHeatsoak, 40);
+    lv_obj_set_x(ui_SettingsSpinboxHeatsoak, -30);
+    lv_obj_set_y(ui_SettingsSpinboxHeatsoak, 60);
+    lv_obj_set_align(ui_SettingsSpinboxHeatsoak, LV_ALIGN_CENTER);
+    lv_spinbox_set_digit_format(ui_SettingsSpinboxHeatsoak, 3, 2);
+    lv_spinbox_set_range(ui_SettingsSpinboxHeatsoak, 0, 999);
+    lv_spinbox_set_cursor_pos(ui_SettingsSpinboxHeatsoak, 1 - 1);
+    lv_obj_set_style_radius(ui_SettingsSpinboxHeatsoak, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_width(ui_SettingsSpinboxHeatsoak, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_width(ui_SettingsSpinboxHeatsoak, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_outline_pad(ui_SettingsSpinboxHeatsoak, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(ui_SettingsSpinboxHeatsoak, lv_color_hex(0xB0B0B0), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_SettingsSpinboxHeatsoak, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_SettingsSpinboxHeatsoak, LV_TEXT_ALIGN_RIGHT, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_SettingsSpinboxHeatsoak, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_text_align(ui_SettingsSpinboxHeatsoak, LV_TEXT_ALIGN_AUTO, LV_PART_CURSOR | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_SettingsSpinboxHeatsoak, &lv_font_montserrat_24, LV_PART_CURSOR | LV_STATE_DEFAULT);
+
+    ui_SettingsLabelCalibrateSoakTime = lv_label_create(ui_SettingsSpinboxHeatsoak);
     lv_obj_set_width(ui_SettingsLabelCalibrateSoakTime, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_SettingsLabelCalibrateSoakTime, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_align(ui_SettingsLabelCalibrateSoakTime, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_SettingsLabelCalibrateSoakTime, "Calibrate Heatsoak\nTime (to now)");
-    lv_obj_set_style_text_font(ui_SettingsLabelCalibrateSoakTime, &lv_font_montserrat_24, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_align(ui_SettingsLabelCalibrateSoakTime, LV_ALIGN_LEFT_MID);
+    lv_label_set_text(ui_SettingsLabelCalibrateSoakTime, "Calibrate Heatsoak");
+    lv_obj_set_style_text_color(ui_SettingsLabelCalibrateSoakTime, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_opa(ui_SettingsLabelCalibrateSoakTime, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_SettingsLabelCalibrateSoakTime, &lv_font_montserrat_14, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_radius(ui_SettingsLabelCalibrateSoakTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_border_width(ui_SettingsLabelCalibrateSoakTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_outline_width(ui_SettingsLabelCalibrateSoakTime, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -118,7 +142,7 @@ void ui_ScreenSettings_screen_init(void)
     lv_obj_set_width(ui_SettingsButtonClearLogs, 240);
     lv_obj_set_height(ui_SettingsButtonClearLogs, 40);
     lv_obj_set_x(ui_SettingsButtonClearLogs, -30);
-    lv_obj_set_y(ui_SettingsButtonClearLogs, 130);
+    lv_obj_set_y(ui_SettingsButtonClearLogs, 110);
     lv_obj_set_align(ui_SettingsButtonClearLogs, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_SettingsButtonClearLogs, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
     lv_obj_remove_flag(ui_SettingsButtonClearLogs, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
@@ -184,7 +208,7 @@ void ui_ScreenSettings_screen_init(void)
     lv_obj_set_width(ui_SettingsLabelSDFree, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_SettingsLabelSDFree, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_align(ui_SettingsLabelSDFree, LV_ALIGN_BOTTOM_LEFT);
-    lv_label_set_text(ui_SettingsLabelSDFree, "1000 MB");
+    lv_label_set_text(ui_SettingsLabelSDFree, "000 MB");
     lv_obj_set_style_text_color(ui_SettingsLabelSDFree, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_SettingsLabelSDFree, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
@@ -257,6 +281,7 @@ void ui_ScreenSettings_screen_destroy(void)
     ui_SettingsDropdownBoilerTemp = NULL;
     ui_SettingsDropdownMusicSelect = NULL;
     ui_SettingsButtonCalibrateSoakTime = NULL;
+    ui_SettingsSpinboxHeatsoak = NULL;
     ui_SettingsLabelCalibrateSoakTime = NULL;
     ui_SettingsButtonClearLogs = NULL;
     ui_SettingsLabelClearLogs = NULL;
