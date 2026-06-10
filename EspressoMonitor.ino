@@ -518,7 +518,8 @@ void loop() {
                 break;
             }
 
-            if (currentTime - stateChangeTime > 10000) {
+            // Wait 30 seconds before transitioning
+            if (currentTime - stateChangeTime > 30000) {
                 if (!savePending) {
                     // Trigger the save and show the uploading label.
                     sharedBrewRating.store(display.getDoneRating());
