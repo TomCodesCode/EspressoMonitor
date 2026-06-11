@@ -479,10 +479,10 @@ void loop() {
             if (curCalib != lastCalibTemp && calibAvailable.load()) {
                 lastCalibTemp = curCalib;
                 // T_sel = current GH temp observed on external thermometer (spinbox)
-                // T_0   = assumed GH temp when boiler first reached target (hardcoded 50°C)
+                // T_0   = assumed GH temp when boiler first reached target (hardcoded 40°C)
                 // T_inf = Newton's Law asymptote (GH target + 14)
                 float T_sel = (float)curCalib;
-                float T_0   = 50.0f;
+                float T_0   = 40.0f;
                 float T_inf = (float)sharedGHTarget.load() + 14.0f;
                 float t     = (millis() - heatSoakStartTime) / 1000.0f;
                 if (t > 0.0f && T_sel > T_0 && T_sel < T_inf) {
@@ -492,8 +492,7 @@ void loop() {
                         sysPrefs.begin("system", false);
                         sysPrefs.putFloat("tau", newTau);
                         sysPrefs.end();
-                        Serial.printf("Heatsoak calibrated: tau = %.1f s (T_sel=%.0f C, t=%.0f s)\n",
-                                      newTau, T_sel, t);
+                        Serial.printf("Heatsoak calibrated: tau = %.1f s (T_sel=%.0f C, t=%.0f s)\n", newTau, T_sel, t);
                     } else {
                         Serial.printf("Calibration rejected: tau = %.1f s out of range (100–2400 s)\n", newTau);
                     }
