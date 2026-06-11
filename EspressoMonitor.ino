@@ -281,6 +281,18 @@ void loop() {
     sound.update();
 
     unsigned long currentTime = millis();
+    static SystemState lastLoopState = WARMUP;
+    static float       pendingTau    = -1.0f;
+
+    // Flush tau to NVS exactly once when leaving SETTINGS
+    if (lastLoopState == SETTINGS && currentState != SETTINGS && pendingTau > 0.0f) {
+        sysPrefs.begin("system", false);
+        sysPrefs.putFloat("tau", pendingTau);
+        sysPrefs.end();
+        Serial.printf("tau saved to NVS on settings exit: %.1f s\n", pendingTau);
+        pendingTau = -1.0f;
+    }
+    lastLoopState = currentState;
 
     // check the peripherals' status every 10 seconds to update the display icons.
     if (currentTime - peripheralsStatusCheckTime > 10000) {
@@ -489,9 +501,7 @@ void loop() {
                     float newTau = -t / log((T_inf - T_sel) / (T_inf - T_0));
                     if (newTau >= 100.0f && newTau <= 2400.0f) {
                         sharedTau.store(newTau);
-                        sysPrefs.begin("system", false);
-                        sysPrefs.putFloat("tau", newTau);
-                        sysPrefs.end();
+                        pendingTau = newTau;
                         Serial.printf("Heatsoak calibrated: tau = %.1f s (T_sel=%.0f C, t=%.0f s)\n", newTau, T_sel, t);
                     } else {
                         Serial.printf("Calibration rejected: tau = %.1f s out of range (100–2400 s)\n", newTau);
