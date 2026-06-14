@@ -246,8 +246,12 @@ void ServerManager::handleApiLog() {
         _server.client().setTimeout(2);
         return;
     }
-    _server.sendHeader("Connection", "close");
-    _server.send(200, "text/plain", _sd->readLogString("/brew_log.csv"));
+    // Streamed in bounded chunks; sends its own 200 + body. Empty file is fine
+    // (yields an empty 200, which the client renders as "No brews logged yet.").
+    if (!_sd->streamFileChunked("/brew_log.csv", _server)) {
+        _server.sendHeader("Connection", "close");
+        _server.send(200, "text/plain", "");
+    }
     _server.client().setTimeout(2);
 }
 
@@ -260,15 +264,12 @@ void ServerManager::handleApiBrewTemps() {
         return;
     }
     unsigned long brewId = strtoul(idStr.c_str(), nullptr, 10);
-    String data = _sd->readBrewTempsString(brewId);
-    if (data.isEmpty()) {
+    char path[32];
+    snprintf(path, sizeof(path), "/brew_%lu.csv", brewId);
+    if (!_sd->streamFileChunked(path, _server)) {
         _server.sendHeader("Connection", "close");
         _server.send(404, "text/plain", "brew not found");
-        _server.client().setTimeout(2);
-        return;
     }
-    _server.sendHeader("Connection", "close");
-    _server.send(200, "text/plain", data);
     _server.client().setTimeout(2);
 }
 

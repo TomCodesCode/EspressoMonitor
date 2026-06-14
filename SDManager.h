@@ -5,6 +5,8 @@
 #include <SPI.h>
 #include <SD.h>
 
+class WebServer;  // fwd decl — full include only needed in the .cpp
+
 // HSPI pins
 #define SD_CS   26
 #define SD_MOSI 17
@@ -26,12 +28,13 @@ public:
 
     void appendLog(const char* path, const char* message);
     void readLog(const char* path);
-    String readLogString(const char* path);
+    // Stream a file to the web client in bounded chunks (no whole-file String).
+    // Returns false if the file is missing (before any response is sent), so the caller can issue a 404. Sends a 200 + body itself on success.
+    bool streamFileChunked(const char* path, WebServer& server, const char* contentType = "text/plain");
     void clearLogs();
     uint32_t getFreeSpaceMB();
     int getBrewCount();
     void saveBrewTemps(unsigned long id, float* temps, int count);
-    String readBrewTempsString(unsigned long id);
     void testReadWrite();
 };
 
