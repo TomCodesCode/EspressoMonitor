@@ -152,14 +152,15 @@ void ServerManager::handleClient() {
         _server.stop();
         _started = false;
         _reconnectAt = millis() + 60000UL;  // 1-min fallback - let autoReconnect do the work first
-        Serial.println("WiFi lost — server stopped.");
+        Serial.println("WiFi lost- server stopped.");
         return;
     }
 
     if (!connected) {
         // setAutoReconnect(true) handles normal reconnection.
         // Only force WiFi.begin() if it has truly stalled for 1 minutes.
-        if (_reconnectAt > 0 && millis() >= _reconnectAt) {
+        // signed difference is overflow-safe across the ~49-day millis() wrap
+        if (_reconnectAt > 0 && (long)(millis() - _reconnectAt) >= 0) {
             Serial.println("WiFi: forcing reconnect after 1-min stall.");
             WiFi.begin(_ssid, _password);
             _reconnectAt = millis() + 60000UL;
@@ -188,6 +189,8 @@ void ServerManager::notifyReady() {
     if (WiFi.status() != WL_CONNECTED) return;
     HTTPClient http;
     http.begin("http://ntfy.sh/" NTFY_TOPIC);
+    http.setConnectTimeout(2000);  // bound DNS/connect so a stalled ntfy.sh can't hang Core 0
+    http.setTimeout(2000);
     http.addHeader("Title", "Espresso Ready");
     http.addHeader("Priority", "high");
     http.addHeader("Tags", "coffee");

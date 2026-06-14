@@ -60,6 +60,7 @@ private:
     lv_obj_t*             _spbMinus        = nullptr;
     uint32_t              _lastSettingsFreeMB  = UINT32_MAX;
     int                   _lastSettingsBrewCount = -1;
+    const char*           _fwVersion       = "?";  // set from the main sketch (always-recompiled TU)
 
     // helpers
     void animateWarmupWave();
@@ -95,6 +96,8 @@ public:
     void setCalibPointers(std::atomic<int>* temp, std::atomic<bool>* available);
 
     void loadScreen(SystemState state);
+    void resetWarmupArc() { _warmupArcMin = -1; }  // call on genuine warmup entry, not settings-return
+    void setFirmwareVersion(const char* v) { _fwVersion = v; }
     void updateSettingsData(uint32_t freeMB, int brewCount);
     void updateWarmupData(float boilerTemp, float estGroupheadTemp, bool boilerReady);
     void updateReadyData(float boilerTemp, float estGroupheadTemp, const char * minutes, const char * seconds);

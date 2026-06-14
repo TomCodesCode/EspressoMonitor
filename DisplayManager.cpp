@@ -1,9 +1,11 @@
-#include "HardwareSerial.h"
-#include "misc/lv_types.h"
-#include "widgets/label/lv_label.h"
-#include "core/lv_obj.h"
 #include "DisplayManager.h"
 #include "src/ui/ui.h"
+
+// Dropdown index <-> temperature mapping: option N corresponds to base + N.
+// Defined once so the set (temp->index) and get (index->temp) directions can't
+// drift apart if the dropdown's lowest option ever changes.
+static constexpr int BOILER_TEMP_BASE = 115;
+static constexpr int GH_TEMP_BASE     = 85;
 
 DisplayManager::DisplayManager() : tft(TFT_eSPI()), lastTickMillis(0) {}
 
@@ -76,7 +78,7 @@ void DisplayManager::init() {
     lv_obj_add_event_cb(ui_SettingsDropdownGHTemp,       settings_gh_temp_cb,     LV_EVENT_VALUE_CHANGED, this);
 
     // Heatsoak calibration spinbox — range 40–70°C, integer display
-    lv_spinbox_set_range(ui_SettingsSpinboxHeatsoak, 40, 70);
+    lv_spinbox_set_range(ui_SettingsSpinboxHeatsoak, 41, 70);  // min 41: at 40 (==T_0) calibration's T_sel>T_0 guard fails
     lv_spinbox_set_digit_format(ui_SettingsSpinboxHeatsoak, 2, 0);
     lv_spinbox_set_value(ui_SettingsSpinboxHeatsoak, 50);
     lv_obj_set_width(ui_SettingsSpinboxHeatsoak, 170);
@@ -178,8 +180,12 @@ void DisplayManager::my_touchpad_read(lv_indev_t * indev, lv_indev_data_t * data
     DisplayManager* manager = (DisplayManager*)lv_indev_get_user_data(indev);
     
     uint16_t touchX, touchY;
-    
-    bool touched = manager->tft.getTouch(&touchX, &touchY);
+
+    // Z pressure threshold for a valid touch. TFT_eSPI defaults to 600 (stiff,
+    // needs a firm press). Lower = lighter/more responsive presses, but too low
+    // invites noise/ghost touches. ~350 is a good resistive-panel starting point.
+    const uint16_t TOUCH_THRESHOLD = 250;
+    bool touched = manager->tft.getTouch(&touchX, &touchY, TOUCH_THRESHOLD);
 
     if (!touched) {
         data->state = LV_INDEV_STATE_RELEASED;
@@ -196,7 +202,8 @@ void DisplayManager::loadScreen(SystemState state) {
     switch(state) {
         case WARMUP:
             lv_screen_load(ui_ScreenWarmup);
-            _warmupArcMin = -1;
+            // NOTE: arc min is NOT reset here- loadScreen(WARMUP) also fires when returning from the SETTINGS overlay, and resetting would re-anchor the
+            // arc to the current (hotter) temp. Genuine warmup entries call resetWarmupArc() explicitly.
             break;
         case READY:   lv_screen_load(ui_ScreenReady);  break;
         case BREWING:{
@@ -217,7 +224,7 @@ void DisplayManager::loadScreen(SystemState state) {
         }
         case SETTINGS:{
             lv_screen_load(ui_ScreenSettings);
-            lv_label_set_text(ui_SettingsLabelFWVerNum, "1.0");
+            lv_label_set_text(ui_SettingsLabelFWVerNum, _fwVersion);
             if (_calibTemp) lv_spinbox_set_value(ui_SettingsSpinboxHeatsoak, _calibTemp->load());
             // Reset cache so labels refresh with new SD stats from Core 0
             _lastSettingsFreeMB    = UINT32_MAX;
@@ -230,8 +237,7 @@ void DisplayManager::loadScreen(SystemState state) {
             _doneRatingDirty = false;
             lv_obj_add_flag(ui_DoneLabelUploading, LV_OBJ_FLAG_HIDDEN);
 
-            // Grab the point count once; the array is no longer being written
-            // (brewing has stopped) so we can copy it without holding the lock.
+            // Grab the point count once; the array is no longer being written (brewing has stopped) so we can copy it without holding the lock
             int count = 0;
             if (session != nullptr) {
                 portENTER_CRITICAL(sessionMux);
@@ -468,27 +474,27 @@ void DisplayManager::setTempTargetPointers(std::atomic<int>* boiler, std::atomic
 }
 
 void DisplayManager::setBoilerTargetDropdown(int temp) {
-    lv_dropdown_set_selected(ui_SettingsDropdownBoilerTemp, (uint16_t)(temp - 115));
+    lv_dropdown_set_selected(ui_SettingsDropdownBoilerTemp, (uint16_t)(temp - BOILER_TEMP_BASE));
 }
 
 void DisplayManager::setGHTargetDropdown(int temp) {
-    lv_dropdown_set_selected(ui_SettingsDropdownGHTemp, (uint16_t)(temp - 85));
+    lv_dropdown_set_selected(ui_SettingsDropdownGHTemp, (uint16_t)(temp - GH_TEMP_BASE));
 }
 
 void DisplayManager::settings_boiler_temp_cb(lv_event_t* e) {
     DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
-    if (dm->_boilerTarget)
-        dm->_boilerTarget->store(115 + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+    int target = BOILER_TEMP_BASE + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
+    if (dm->_boilerTarget) dm->_boilerTarget->store(target);
     Serial.print("new boiler temp target: ");
-    Serial.println(115 + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+    Serial.println(target);
 }
 
 void DisplayManager::settings_gh_temp_cb(lv_event_t* e) {
     DisplayManager* dm = (DisplayManager*)lv_event_get_user_data(e);
-    if (dm->_ghTarget)
-        dm->_ghTarget->store(85 + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+    int target = GH_TEMP_BASE + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
+    if (dm->_ghTarget) dm->_ghTarget->store(target);
     Serial.print("new grouphead temp target: ");
-    Serial.println(85 + (int)lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e)));
+    Serial.println(target);
 }
 
 void DisplayManager::settings_spinbox_inc_cb(lv_event_t* e) {

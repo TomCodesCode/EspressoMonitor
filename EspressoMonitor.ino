@@ -10,6 +10,7 @@
 #include "TimeManager.h"
 // #include "InputManager.h"
 #include "SystemState.h"
+#include "version.h"
 #include "SDManager.h"
 #include "BrewSession.h"
 #include "ServerManager.h"
@@ -45,9 +46,12 @@ unsigned long stateChangeTime = 0; // To track how long we've been in a state
 // If waiting for too long, should check if temp hasn't dropped (i.e.- maybe a smart-home switch turned off by timer)
 unsigned long peripheralsStatusCheckTime = 0;
 unsigned long readyTime = 0;
-unsigned long heatSoakStartTime = 0;
-bool isBoilerReady = false;
-bool calibWindow  = false; // true from boiler-ready through end of READY; set/cleared in state machine
+// Written by Core 1 (loop), read by Core 0 (worker) for the GH estimate — atomic
+// to make the cross-core access explicit. (Aligned 32-bit access is atomic on
+// Xtensa anyway, but this documents intent and adds proper memory ordering.)
+std::atomic<unsigned long> heatSoakStartTime{0};
+std::atomic<bool> isBoilerReady{false};
+bool calibWindow  = false; // true from boiler-ready through end of READY; loop()-only, single-core
 bool savePending = false;  // true while waiting for Core 0 to finish the SD save
 
 std::atomic<float> sharedBoilerTemp = 20.0;
@@ -112,6 +116,7 @@ void setup() {
     display.setMusicSelectPointer(&sharedMusicSelect);
     display.setTempTargetPointers(&sharedBoilerTarget, &sharedGHTarget);
     display.setCalibPointers(&sharedCalibTemp, &calibAvailable);
+    display.setFirmwareVersion(FW_VERSION);
     sensor.setGroupheadTargetRef(&sharedGHTarget);
     sensor.setTauRef(&sharedTau);
 
@@ -142,12 +147,13 @@ void setup() {
     pumpSensor.init(); // IMPORTANT: Ensure pump is OFF when you turn the machine on! (good practice regardless)
     sdCard.init();
 
-    sdCard.testReadWrite();
+    // purely for SD testing. no need in actual runs. un-comment if you suspect anything
+    // sdCard.testReadWrite();
 
     webServer.setDataSources(&latestTemps, &tempMux, &currentState, &sdCard);
     webServer.begin(WIFI_SSID, WIFI_PASSWORD);
 
-    // Extend WDT to 12 s — individual SD card ops (flash erase, wear-leveling)
+    // Extend WDT to 12 s- individual SD card ops (flash erase, wear-leveling)
     // can legitimately take several seconds; 12 s still catches true hangs.
     {
         esp_task_wdt_config_t wdtCfg = { .timeout_ms = 12000, .idle_core_mask = 0, .trigger_panic = true };
@@ -157,7 +163,7 @@ void setup() {
     xTaskCreatePinnedToCore(
         coreZeroWorkerTask,
         "WorkerTask",
-        16384,
+        16384,              // Increased stack for stability
         NULL,
         1,                  // Priority 1
         NULL,
@@ -431,6 +437,7 @@ void loop() {
                 if (currentTime - readyTime > 60000 && sharedBoilerTemp.load() < sharedBoilerTarget.load()) {
                     calibWindow = false;
                     currentState = WARMUP;
+                    display.resetWarmupArc();
                     display.loadScreen(WARMUP);
                     Serial.println("State: WARMUP (temp dropped)");
                 }
@@ -580,6 +587,7 @@ void loop() {
                         Serial.println("READY- still warm enough");
                     } else {
                         currentState = WARMUP;
+                        display.resetWarmupArc();
                         display.loadScreen(WARMUP);
                         Serial.println("WARMUP");
                     }
