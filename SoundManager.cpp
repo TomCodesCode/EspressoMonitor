@@ -53,7 +53,8 @@ SoundManager::SoundManager(int pinNumber) : pin(pinNumber) {
 }
 
 void SoundManager::init() {
-    pinMode(pin, OUTPUT); // tone also works without pinMode
+    noTone(pin);           // clear any LEDC state left over from a soft reset
+    pinMode(pin, OUTPUT);
 }
 
 void SoundManager::playMelody(const Note* melody, int length) {

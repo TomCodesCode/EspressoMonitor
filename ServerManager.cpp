@@ -136,8 +136,7 @@ void ServerManager::begin(const char* ssid, const char* password) {
     Serial.println(ssid);
 }
 
-void ServerManager::setDataSources(TempSnapshot* temps, portMUX_TYPE* tempMux,
-                                    const SystemState* state, SDManager* sd) {
+void ServerManager::setDataSources(TempSnapshot* temps, portMUX_TYPE* tempMux, const SystemState* state, SDManager* sd) {
     _temps   = temps;
     _tempMux = tempMux;
     _state   = state;
@@ -152,14 +151,14 @@ void ServerManager::handleClient() {
     if (!connected && _started) {
         _server.stop();
         _started = false;
-        _reconnectAt = millis() + 60000UL;  // 1-min fallback — let autoReconnect do the work first
+        _reconnectAt = millis() + 60000UL;  // 1-min fallback - let autoReconnect do the work first
         Serial.println("WiFi lost — server stopped.");
         return;
     }
 
     if (!connected) {
         // setAutoReconnect(true) handles normal reconnection.
-        // Only force WiFi.begin() if it has truly stalled for 5 minutes.
+        // Only force WiFi.begin() if it has truly stalled for 1 minutes.
         if (_reconnectAt > 0 && millis() >= _reconnectAt) {
             Serial.println("WiFi: forcing reconnect after 1-min stall.");
             WiFi.begin(_ssid, _password);
@@ -234,8 +233,7 @@ void ServerManager::handleApiTemps() {
 
     char json[80];
     snprintf(json, sizeof(json),
-             "{\"boiler\":%.1f,\"grouphead\":%.1f,\"state\":\"%s\"}",
-             snap.boiler, snap.grouphead, stateToString(st));
+             "{\"boiler\":%.1f,\"grouphead\":%.1f,\"state\":\"%s\"}", snap.boiler, snap.grouphead, stateToString(st));
     _server.sendHeader("Connection", "close");
     _server.send(200, "application/json", json);
     _server.client().setTimeout(2);

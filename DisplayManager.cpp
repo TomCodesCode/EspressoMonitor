@@ -266,12 +266,12 @@ void DisplayManager::done_rating_slider_cb(lv_event_t* e) {
     dm->_doneRatingDirty = true;
 }
 
-void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp) {
+void DisplayManager::updateWarmupData(float boilerTemp, float estGroupheadTemp, bool boilerReady) {
     char boilerStr[16];
     snprintf(boilerStr, sizeof(boilerStr), "%.1f C", boilerTemp);
     lv_label_set_text(ui_WarmupLabelBoilerTemp, boilerStr);
 
-    if (estGroupheadTemp == 0.0) {
+    if (!boilerReady) {
         lv_obj_set_y(ui_WarmupPanelTemp, 20);
         lv_obj_add_flag(ui_WarmupBarWater, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(ui_WarmupPanelGrouphead, LV_OBJ_FLAG_HIDDEN);

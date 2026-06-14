@@ -96,12 +96,13 @@ public:
 
     void loadScreen(SystemState state);
     void updateSettingsData(uint32_t freeMB, int brewCount);
-    void updateWarmupData(float boilerTemp, float estGroupheadTemp);
+    void updateWarmupData(float boilerTemp, float estGroupheadTemp, bool boilerReady);
     void updateReadyData(float boilerTemp, float estGroupheadTemp, const char * minutes, const char * seconds);
     void updateBrewData(const char* seconds, const char* tenths, float temp);
     void updateDoneData(const char* seconds, const char* tenths);
     void showDoneUploading(bool show);
     int  getDoneRating();
+    bool isShowingBoilerTemp() const { return showingBoilerTemp; }
 
     void setSDState(bool isConnected);
     void setWifiState(bool isConnected);

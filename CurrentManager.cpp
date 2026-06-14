@@ -121,6 +121,7 @@ bool CurrentManager::isPumpOn() {
     if (millis() - lastCheck >= 100) {
         lastCheck = millis();
         float strength = readStrength();
+        Serial.printf("SCT: %.1f (thresh=%.1f)\n", strength, dynamicThreshold);
 
         bool newState = lastPumpState;
         if (lastPumpState) {

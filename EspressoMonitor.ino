@@ -207,7 +207,9 @@ void coreZeroWorkerTask(void * parameter) {
             portEXIT_CRITICAL(&tempMux);
         }
 
-        // sharedPumpRunning = pumpSensor.isPumpOn();
+        // NOTE: pump detection runs in loop() on Core 1, NOT here. The WiFi/lwIP
+        // stack lives on Core 0 and preempts readStrength()'s delay(1) sampling
+        // loop, jittering the samples and inflating the RMS into phantom current.
 
         // SD Card Handshake (Triggered by Core 1)
         if (requestCsvSave) {
@@ -300,9 +302,12 @@ void loop() {
         display.setWifiState(webServer.isConnected());
         peripheralsStatusCheckTime = currentTime;
     }
-    
-    // Check pump status
-    //bool isPumpRunning = pumpSensor.isPumpOn();
+
+    // Pump detection — runs here on Core 1 (loopTask), away from the WiFi/lwIP
+    // stack on Core 0. isPumpOn() self-rate-limits to 100 ms internally, so
+    // calling it every frame is cheap. This is where it lived (and worked)
+    // before the 2-core refactor disabled it.
+    if (!mockMode) sharedPumpRunning = pumpSensor.isPumpOn();
 
     switch (currentState) {
         // CASE: WARMING UP
@@ -311,7 +316,7 @@ void loop() {
                 static float lastDrawnBoiler = -1.0;
                 static float lastDrawnGH     = -1.0;
                 if (abs(mockTempBoiler - lastDrawnBoiler) > 0.1 || abs(mockTempGH - lastDrawnGH) > 0.1) {
-                    display.updateWarmupData(mockTempBoiler, mockTempGH);
+                    display.updateWarmupData(mockTempBoiler, mockTempGH, mockTempGH > 0.0f);
                     lastDrawnBoiler = mockTempBoiler;
                     lastDrawnGH     = mockTempGH;
                 }
@@ -337,7 +342,7 @@ void loop() {
                 float boilerNow = sharedBoilerTemp.load();
                 float ghNow     = sharedGroupheadTemp.load();
                 if (abs(boilerNow - lastDrawnBoiler) > 0.1 || abs(ghNow - lastDrawnGH) > 0.1) {
-                    display.updateWarmupData(boilerNow, ghNow);
+                    display.updateWarmupData(boilerNow, ghNow, isBoilerReady);
                     lastDrawnBoiler = boilerNow;
                     lastDrawnGH     = ghNow;
                 }
@@ -389,12 +394,20 @@ void loop() {
             } else {
                 static float lastDrawnBoiler = -1.0;
                 static float lastDrawnGH     = -1.0;
-                float boilerNow = sharedBoilerTemp.load();
-                float ghNow     = sharedGroupheadTemp.load();
-                if (abs(boilerNow - lastDrawnBoiler) > 0.1 || abs(ghNow - lastDrawnGH) > 0.1) {
+                static int   lastDrawnSec    = -1;
+                static bool  lastShowBoiler  = false;
+                float boilerNow  = sharedBoilerTemp.load();
+                float ghNow      = sharedGroupheadTemp.load();
+                int   nowSec     = (int)timer.getSeconds();
+                bool  showBoiler = display.isShowingBoilerTemp();
+                // Repaint on temp change, every ticked second, or a temp-toggle press.
+                if (abs(boilerNow - lastDrawnBoiler) > 0.1 || abs(ghNow - lastDrawnGH) > 0.1
+                        || nowSec != lastDrawnSec || showBoiler != lastShowBoiler) {
                     display.updateReadyData(boilerNow, ghNow, minutes, seconds);
                     lastDrawnBoiler = boilerNow;
                     lastDrawnGH     = ghNow;
+                    lastDrawnSec    = nowSec;
+                    lastShowBoiler  = showBoiler;
                 }
                 // TODO: phone notification here
                 if (sharedPumpRunning) {
@@ -491,10 +504,10 @@ void loop() {
             if (curCalib != lastCalibTemp && calibAvailable.load()) {
                 lastCalibTemp = curCalib;
                 // T_sel = current GH temp observed on external thermometer (spinbox)
-                // T_0   = assumed GH temp when boiler first reached target (hardcoded 40°C)
+                // T_0   = actual GH temp at boot (captured from first cold sensor reading)
                 // T_inf = Newton's Law asymptote (GH target + 14)
                 float T_sel = (float)curCalib;
-                float T_0   = 40.0f;
+                float T_0   = sensor.getInitialGroupheadTemp();
                 float T_inf = (float)sharedGHTarget.load() + 14.0f;
                 float t     = (millis() - heatSoakStartTime) / 1000.0f;
                 if (t > 0.0f && T_sel > T_0 && T_sel < T_inf) {
@@ -551,6 +564,8 @@ void loop() {
                     if (sharedBoilerTemp >= sharedBoilerTarget.load()) {
                         currentState = READY;
                         readyTime = currentTime;
+                        timer.reset();
+                        timer.start();
                         display.loadScreen(READY);
                         Serial.println("READY- still warm enough");
                     } else {

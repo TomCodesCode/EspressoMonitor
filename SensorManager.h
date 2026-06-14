@@ -28,6 +28,7 @@ private:
     float currentTemp;
     bool isMeasuring;
     unsigned long measureStartTime;
+    float _initialGroupheadTemp = 40.0f; // assumed GH temp when boiler first reaches target
 
 public:
     SensorManager(SPIClass* sharedSPI);
@@ -35,6 +36,7 @@ public:
     void setSpiMutex(SemaphoreHandle_t m);
     void setGroupheadTargetRef(std::atomic<int>* ref);
     void setTauRef(std::atomic<float>* ref);
+    float getInitialGroupheadTemp() const { return _initialGroupheadTemp; }
     void update();
     float getTemp();
     float getEstimatedGroupheadTemp(unsigned long timeSinceBoilerReadyMs);

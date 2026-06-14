@@ -6,7 +6,6 @@
 
 // VBM Domobar Junior is an E61 machine, so after the boiler reaches its target temp, the brass needs to heat up the grouphead (takes 11 - 15 minutes usually)
 // targetGroupheadTemp is computed dynamically from _ghTargetRef (+14 for asymptote offset); default 90°C
-const float initialGroupheadTemp = 50.0; // assumed grouphead temp when boiler is ready
 
 // tau (time constant) is set dynamically via _tauRef. default 592 s ≈ 13.5 min heat soak
 
@@ -95,7 +94,7 @@ float SensorManager::getEstimatedGroupheadTemp(unsigned long timeSinceBoilerRead
     float target  = (_ghTargetRef ? (float)_ghTargetRef->load() : 90.0f) + 14.0f;
     float tau     = _tauRef ? _tauRef->load() : 592.0f;
     float elapsed = timeSinceBoilerReadyMs / 1000.0f;
-    return target - (target - initialGroupheadTemp) * exp(-elapsed / tau);
+    return target - (target - _initialGroupheadTemp) * exp(-elapsed / tau);
 }
 
 float SensorManager::getTemp() { return currentTemp; }
