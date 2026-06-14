@@ -195,15 +195,25 @@ void coreZeroWorkerTask(void * parameter) {
             sensor.update();
 
             float boilerNow = sensor.getTemp();
-            unsigned long boilerReadyTime = isBoilerReady ? millis() - heatSoakStartTime : 0;
-            float groupheadNow = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
+            sharedBoilerTemp = boilerNow;
 
-            sharedBoilerTemp    = boilerNow;
-            sharedGroupheadTemp = groupheadNow;
+            // GH is modeled, not measured. Run the model only in WARMUP: this
+            // reproduces the original curve (40 C while the boiler arc fills,
+            // then climbing during heat soak). In READY/DONE the estimate is
+            // left frozen at its last WARMUP value (~GH target) rather than
+            // recomputing with elapsed=0, which snapped it back to 40 C.
+            if (currentState == WARMUP) {
+                unsigned long boilerReadyTime = isBoilerReady ? millis() - heatSoakStartTime : 0;
+                sharedGroupheadTemp = sensor.getEstimatedGroupheadTemp(boilerReadyTime);
+            } else {
+                // READY/DONE: no live GH model. Show the current GH target so it
+                // reflects settings changes instead of a stale frozen estimate.
+                sharedGroupheadTemp = (float)sharedGHTarget.load();
+            }
 
             portENTER_CRITICAL(&tempMux);
             latestTemps.boiler    = boilerNow;
-            latestTemps.grouphead = groupheadNow;
+            latestTemps.grouphead = sharedGroupheadTemp.load();
             portEXIT_CRITICAL(&tempMux);
         }
 
