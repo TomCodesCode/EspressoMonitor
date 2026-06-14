@@ -8,6 +8,7 @@
 #include "SensorManager.h"
 #include "CurrentManager.h"
 #include "TimeManager.h"
+// legacy: if a button is added, change the InputManager files and uncomment.
 // #include "InputManager.h"
 #include "SystemState.h"
 #include "version.h"
