@@ -2,7 +2,7 @@
 
 ![EspressoMonitor](https://img.shields.io/badge/Platform-ESP32-blue) ![C++](https://img.shields.io/badge/Language-C%2B%2B-00599C) ![RTOS](https://img.shields.io/badge/Architecture-FreeRTOS-FF0000) ![LVGL](https://img.shields.io/badge/UI-LVGL_v9-green)
 
-*(need to insert a cool picture of the screen running on your machine here)*
+*(Insert a cool picture of the screen running on your machine here)*
 
 ***Add demo images***
 
@@ -30,7 +30,7 @@ Using sensors, Wi-Fi, math, and some thermodynamics, we can:
 * 📱 **Push Notifications:** Also when ready, an HTTP notification is sent via `ntfy.sh` to your phone, so you can work in another room and still know when your machine is ready to pull.
 * 📈 **Live Telemetry:** Started brewing your shot? You get a live shot timer and boiler temps on a rolling 30-second chart! The brew is detected automatically with a non-invasive SCT current sensor clamped around the machine's pump wire.
 * 🌐 **Interactive Web Dashboard:** A baked-in HTML/JS interface served locally (`espresso.local`). Watch live temps, view historical CSV logs, and remotely delete old files directly from your phone.
-* ⭐ **Rate Your Shot:** A post-brew UI slider allows you to score the shot from 0-10, which is immediately appended to the SD card CSV log alongside the 10Hz temperature arrays.
+* ⭐ **Rate Your Shot:** A post-brew UI slider allows you to score the shot from 0-10, which is immediately appended to the SD card CSV log alongside the 1Hz temperature arrays.
 
 ## 📖 Why bother? (The Origin Story)
 The legendary E61 espresso grouphead is a marvel of 1960s thermodynamics. It uses a massive 4kg block of solid brass to guarantee temperature stability during a shot. But that massive thermal mass comes with a catch: while the internal boiler might reach 117°C in 3 minutes, the grouphead itself takes another 15+ minutes to absorb that heat and reach the perfect 90°C brewing temperature. 
@@ -66,14 +66,14 @@ Here is a chronological list of the walls I hit at 100mph, and how I engineered 
 #### 💥 1. You Can't Drill a Hole in a $1,500 Machine (Newton's Law)
 I could measure the boiler, but how do you measure the temperature of a 4kg chrome brass E61 grouphead without physically putting a probe inside it? 
 
-> **✅ The Fix:** Thermodynamics. I treated the boiler as the heat source and wrote a C++ algorithm using an inverted **Newton’s Law of Heating**. Once the boiler hits its target, a stopwatch starts. The UI uses an exponential asymptote curve to estimate how much heat the brass has absorbed. I even built a calibration screen. You stick a physical thermometer on your grouphead, enter that number into the UI spinbox, and the ESP32 dynamically reverse-engineers the thermal "sluggishness" ($\tau$) of your specific brass block. 
+> **✅ The Fix:** Thermodynamics. I treated the boiler as the heat source and wrote a C++ algorithm using an inverted **Newton’s Law of Heating**. While the machine is in the `WARMUP` state, a stopwatch tracks the boiler and uses an exponential asymptote curve to estimate how much heat the brass has absorbed. Once it hits `READY`, the algorithm freezes the estimate to prevent the math from violently snapping the temperature backwards when internal timers reset. I even built a calibration screen. You stick a physical thermometer on your grouphead, enter that number into the UI spinbox, and the ESP32 dynamically reverse-engineers the thermal "sluggishness" ($\tau$) of your specific brass block. 
 
-> 💡 **Pro-tip:** *If you rapidly click a "+" button 15 times to change a calibration setting, and your code writes that to NVS flash memory on every click, you will fry your flash chip's write-cycles in a month. I had to add a 1-second debounce timer to the UI so it only saves after you're done clicking.*
+> 💡 **Pro-tip:** *If you rapidly click a "+" button 15 times to change a calibration setting, and your code writes that to NVS flash memory on every click, you will fry your flash chip's write-cycles in a month. I tied the NVS flash command to the RTOS state machine, so it only physically burns the new calibration to memory exactly once when you exit the Settings screen.*
 
 #### 💥 2. The 220V EMI Nightmare (Pump Detection)
 I needed to start the shot timer the millisecond the 220V water pump turned on. Clamping an SCT-013 analog current sensor over the wire was safe, but the inside of an espresso machine is a nightmare of Electromagnetic Interference (EMI) from the heating elements. 
 
-> **✅ The Fix:** I built a dynamic `CurrentManager`. Instead of hardcoding a trigger value, the ESP32 samples the ambient electrical noise floor on boot, calculates the RMS voltage, sets a dynamic threshold, and applies a strict time-based debounce filter (ON for 250ms, OFF for 500ms) to guarantee the timer only triggers on true pump activation.
+> **✅ The Fix:** I built a dynamic `CurrentManager`. Instead of hardcoding a trigger value, the ESP32 samples the ambient electrical noise floor on boot, calculates the RMS voltage, sets a dynamic threshold, and applies a strict time-based debounce filter (ON for 250ms, OFF for 500ms) to guarantee the timer only triggers on true pump activation. *Crucially, I had to pin this DSP (Digital Signal Processing) loop specifically to Core 1. When it ran on Core 0, the ESP32's Wi-Fi radio would constantly interrupt the microsecond ADC sampling, creating "phantom" current readings!*
 
 ---
 
@@ -82,12 +82,12 @@ I needed to start the shot timer the millisecond the 220V water pump turned on. 
 #### 💥 3. The 3.7-Second Death (Or: Never Trust the UI Builder)
 I designed a beautiful interface using SquareLine Studio, exported the code, and flashed it. I pulled the virtual lever. 1 second... 2 seconds... 3.7 seconds... and the ESP32 violently panicked and rebooted. When it didn't crash, the chart drew wild, jagged lines of red "junk" data.
 
-> **✅ The Fix:** SquareLine had hardcoded a tiny 10-point C-array into the background. When my code shoved 300 points of temperature data into that chart, it violently overwrote 290 adjacent memory addresses in RAM—corrupting FreeRTOS task pointers. I severed SquareLine's control over the chart entirely and dynamically allocated the memory natively in C++. 
+> **✅ The Fix:** SquareLine had hardcoded a tiny 10-point C-array into the background. When my code shoved 300 points of temperature data into that chart, it violently overwrote 290 adjacent memory addresses in RAM—corrupting FreeRTOS task pointers. I severed SquareLine's control over the chart entirely. By re-initializing the series natively in C++, LVGL's memory manager took over, allowing the chart to dynamically resize itself every tick safely without nuking the heap.
 
 #### 💥 4. The Missing Espresso (The Beat Frequency Bug)
 I ran a mock 25-second shot. When I looked at the summary chart, it only showed about 18 seconds of data. Two-thirds of the graph was just... gone. Where did my espresso go?
 
-> **✅ The Fix:** A classic RTOS timing collision. My main loop had a `delay(33)` to feed the FreeRTOS watchdog. I was also saving a data point every `100ms` via `millis()`. But 33 + 33 + 33 = 99. The 3rd loop was *just barely* too fast, so the ESP32 waited for the 4th loop (132ms) to log the data. I thought I was logging at 10Hz, but I was secretly logging at 7.5Hz. I abandoned `millis()` entirely and synced the array writes directly to the visual `tenths` timer string changing on the UI. Flawless 10Hz sync.
+> **✅ The Fix:** A classic RTOS timing collision. My main loop had a `delay(33)` to feed the FreeRTOS watchdog. I was also saving a data point every `100ms` via `millis()`. But 33 + 33 + 33 = 99. The 3rd loop was *just barely* too fast, so the ESP32 waited for the 4th loop (132ms) to log the data. I thought I was logging perfectly, but I was secretly dropping frames. I abandoned `millis()` entirely and synced the array writes directly to the visual seconds timer string changing on the UI. Flawless, perfectly synced 1Hz logging.
 
 #### 💥 5. The 1.79MB Brick Wall
 I wanted an Async web server so I didn't have to squint at the machine from the living room. I crammed a beautiful HTML dashboard into the code, hit compile... and the IDE basically laughed at me. `Compilation error: text section exceeds available space.` My binary was 1.79MB. The default ESP32 partition scheme only gives you 1.2MB for the app.
@@ -107,7 +107,8 @@ I added a button to the dashboard to download the CSV log. I used `file.readStri
 ---
 
 ## 🚀 Future Roadmap
-* Integrating a web-based chart viewer to visualize historical temperature profiles from the CSV files directly in the browser.
+* Adding AI (API) based log analysis and recommendations.
+* Adding a Bluetooth scale to stop the brewing automatically at a desired shot weight (using a relay).
 * ~~Adding a mini-game to play on the touch screen while waiting for the heat soak.~~ *(Killed to protect RTOS stability. A good engineer knows when to say no).*
 
 ***
