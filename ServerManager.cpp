@@ -53,7 +53,10 @@ th{color:#888;font-weight:600}
   </div>
 </div>
 <script>
-var TMIN=85,TMAX=125,CW=300,CH=100,PAD=12;
+var TMIN=90,TMAX=125,CW=300,CH=100,PAD=12;
+var curVals=[],curDur=0,chartBase='';
+function tx(i,n){return PAD+(CW-2*PAD)*i/(n>1?n-1:1);}
+function ty(v){var y=PAD+(CH-2*PAD)*(1-(v-TMIN)/(TMAX-TMIN));return Math.max(PAD,Math.min(CH+PAD,y));}
 function fmtTime(ms,unix){
   if(unix&&unix>0) return new Date(unix*1000).toLocaleString();
   var s=Math.floor(ms/1000),m=Math.floor(s/60),h=Math.floor(m/60);
@@ -97,25 +100,46 @@ function showChart(id,dur){
     var vals=t.trim().split('\n').filter(function(l){return l.length>0;}).map(Number);
     if(!vals.length)return;
     var n=vals.length;
-    function tx(i){return PAD+(CW-2*PAD)*i/(n>1?n-1:1);}
-    function ty(v){
-      var y=PAD+(CH-2*PAD)*(1-(v-TMIN)/(TMAX-TMIN));
-      return Math.max(PAD,Math.min(CH+PAD,y));
-    }
-    var pts=vals.map(function(v,i){return tx(i).toFixed(1)+','+ty(v).toFixed(1);}).join(' ');
-    var grids=[90,100,110,120].map(function(t){
+    curVals=vals;curDur=parseFloat(dur)||0;
+    var pts=vals.map(function(v,i){return tx(i,n).toFixed(1)+','+ty(v).toFixed(1);}).join(' ');
+    var grids='';
+    for(var t=90;t<=125;t++){
       var y=ty(t).toFixed(1);
-      return '<line x1="'+PAD+'" y1="'+y+'" x2="'+(CW-PAD)+'" y2="'+y
-            +'" stroke="#ddd" stroke-width="0.5"/>'
-            +'<text x="1" y="'+(parseFloat(y)+3)+'" font-size="6" fill="#aaa">'+t+'</text>';
-    }).join('');
-    document.getElementById('mchart').innerHTML=grids
-      +'<polyline points="'+pts+'" fill="none" stroke="#c00" stroke-width="1.5" stroke-linejoin="round"/>';
-    document.getElementById('mtitle').textContent='Brew '+id+' — '+dur+'s, '+n+' pts';
+      var major=(t%5===0);
+      grids+='<line x1="'+PAD+'" y1="'+y+'" x2="'+(CW-PAD)+'" y2="'+y
+            +'" stroke="'+(major?'#ccc':'#eee')+'" stroke-width="0.5"/>';
+      if(major) grids+='<text x="1" y="'+(parseFloat(y)+3)+'" font-size="6" fill="#aaa">'+t+'</text>';
+    }
+    chartBase=grids+'<polyline points="'+pts+'" fill="none" stroke="#c00" stroke-width="1.5" stroke-linejoin="round"/>';
+    document.getElementById('mchart').innerHTML=chartBase;
+    document.getElementById('mtitle').textContent='Brew '+id+' — '+dur+'s, '+n+' pts (tap to read)';
     document.getElementById('modal').className='open';
   }).catch(function(){alert('Chart data not on SD card.');});
 }
+function showPoint(i){
+  var n=curVals.length;if(!n)return;
+  var v=curVals[i],x=tx(i,n),y=ty(v);
+  var secs=n>1?curDur*i/(n-1):0;
+  var anchor=x<40?'start':(x>CW-40?'end':'middle');
+  var lx=anchor==='start'?x+3:(anchor==='end'?x-3:x);
+  var ly=y-6<10?y+12:y-6;
+  var m='<line x1="'+x.toFixed(1)+'" y1="'+PAD+'" x2="'+x.toFixed(1)+'" y2="'+(CH+PAD)
+       +'" stroke="#c00" stroke-width="0.4" stroke-dasharray="2,2"/>'
+       +'<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="2.2" fill="#c00"/>'
+       +'<text x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" font-size="7" font-weight="bold" fill="#c00" text-anchor="'+anchor+'">'
+       +v.toFixed(1)+'° '+secs.toFixed(1)+'s</text>';
+  document.getElementById('mchart').innerHTML=chartBase+m;
+}
+function chartClick(e){
+  var n=curVals.length;if(!n)return;
+  var svg=document.getElementById('mchart');
+  var pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
+  var loc=pt.matrixTransform(svg.getScreenCTM().inverse());
+  var i=Math.round((loc.x-PAD)/(CW-2*PAD)*(n>1?n-1:1));
+  showPoint(Math.max(0,Math.min(n-1,i)));
+}
 function closeChart(){document.getElementById('modal').className='';}
+document.getElementById('mchart').addEventListener('click',chartClick);
 poll();loadLog();setInterval(poll,5000);
 </script>
 </body>
