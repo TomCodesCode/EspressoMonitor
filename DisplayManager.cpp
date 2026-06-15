@@ -198,6 +198,41 @@ void DisplayManager::my_touchpad_read(lv_indev_t * indev, lv_indev_data_t * data
     }
 }
 
+void DisplayManager::applyChartAutoRange(lv_obj_t* chart, lv_obj_t* yScale, const float* temps, int n) {
+    const int STEP     = 5;   // round the range out to clean multiples of this (also drives label spacing)
+    const int PAD      = 2;   // degrees of breathing room above/below the data
+    const int MIN_SPAN = 10;  // never zoom tighter than this, so a flat shot doesn't magnify noise
+
+    int lo, hi;
+    if (temps == nullptr || n <= 0) {
+        lo = 90; hi = 120;  // sensible default before any data exists
+    } else {
+        float mn = temps[0], mx = temps[0];
+        for (int i = 1; i < n; i++) {
+            if (temps[i] < mn) mn = temps[i];
+            if (temps[i] > mx) mx = temps[i];
+        }
+        // pad, then round outward to the STEP grid (this rounding also gives the
+        // range natural hysteresis- it only changes when a reading crosses a multiple of STEP)
+        lo = (int)floorf((mn - PAD) / STEP) * STEP;
+        hi = (int)ceilf ((mx + PAD) / STEP) * STEP;
+        // enforce the minimum span, expanding symmetrically while staying on the grid
+        while (hi - lo < MIN_SPAN) {
+            lo -= STEP;
+            if (hi - lo < MIN_SPAN) hi += STEP;
+        }
+    }
+
+    // The plotted line and the printed numbers are driven by two separate objects-
+    // update both or the labels will lie.
+    lv_chart_set_axis_range(chart, LV_CHART_AXIS_PRIMARY_Y, lo, hi);
+    if (yScale != nullptr) {
+        lv_scale_set_range(yScale, lo, hi);
+        lv_scale_set_total_tick_count(yScale, (hi - lo) + 1);  // a tick per degree
+        lv_scale_set_major_tick_every(yScale, STEP);           // labelled tick every STEP degrees
+    }
+}
+
 void DisplayManager::loadScreen(SystemState state) {
     switch(state) {
         case WARMUP:
@@ -220,6 +255,7 @@ void DisplayManager::loadScreen(SystemState state) {
 
             lv_chart_set_point_count(ui_BrewChart, 2); // grows each second with actual data
             lv_chart_set_all_value(ui_BrewChart, brew_ser, LV_CHART_POINT_NONE);
+            applyChartAutoRange(ui_BrewChart, ui_BrewChart_Yaxis1, nullptr, 0); // reset to default until data arrives
             break;
         }
         case SETTINGS:{
@@ -257,6 +293,8 @@ void DisplayManager::loadScreen(SystemState state) {
                 for(int i = 0; i < count; i++) {
                     lv_chart_set_next_value(ui_DoneChart, done_ser, (int)session->temperatures[i]);
                 }
+                // Match the final live-brew scaling (identical helper, identical result)
+                applyChartAutoRange(ui_DoneChart, ui_DoneChart_Yaxis1, session->temperatures, count);
             }
             break;
         }
@@ -393,8 +431,15 @@ void DisplayManager::updateBrewData(const char* seconds, const char* tenths, flo
             for (int i = 0; i < n; i++) {
                 lv_chart_set_next_value(ui_BrewChart, brew_ser, (int)session->temperatures[i]);
             }
+            applyChartAutoRange(ui_BrewChart, ui_BrewChart_Yaxis1, session->temperatures, n);
         }
     }
+}
+
+void DisplayManager::updateBrewSCT(float strength, float threshold) {
+    char sctStr[24];
+    snprintf(sctStr, sizeof(sctStr), "%.1f / %.1f", strength, threshold);
+    lv_label_set_text(ui_BrewLabelSCTCurrent, sctStr);
 }
 
 void DisplayManager::setBrewSession(BrewSession * s, portMUX_TYPE * mux) {

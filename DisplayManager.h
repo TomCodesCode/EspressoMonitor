@@ -64,6 +64,8 @@ private:
 
     // helpers
     void animateWarmupWave();
+    // Auto-scale a chart's Y axis (and its numeric scale) to fit the given data.
+    void applyChartAutoRange(lv_obj_t* chart, lv_obj_t* yScale, const float* temps, int n);
     int32_t _warmupArcMin = -1;  // set to actual boiler temp on first updateWarmupData call; -1 = unset
     bool _doneRatingDirty = false;
     static void done_rating_slider_cb(lv_event_t* e);
@@ -102,6 +104,7 @@ public:
     void updateWarmupData(float boilerTemp, float estGroupheadTemp, bool boilerReady);
     void updateReadyData(float boilerTemp, float estGroupheadTemp, const char * minutes, const char * seconds);
     void updateBrewData(const char* seconds, const char* tenths, float temp);
+    void updateBrewSCT(float strength, float threshold);  // live SCT current readout on the brew screen
     void updateDoneData(const char* seconds, const char* tenths);
     void showDoneUploading(bool show);
     int  getDoneRating();

@@ -21,6 +21,7 @@ extern lv_obj_t * ui_BrewLabelWiFi;
 extern lv_obj_t * ui_BrewLabelSD;
 extern lv_obj_t * ui_BrewBtnSettings;
 extern lv_obj_t * ui_BrewLabelSettings;
+extern lv_obj_t * ui_BrewLabelSCTCurrent;
 extern lv_obj_t * ui_BrewPanelTopBar;
 extern lv_obj_t * ui_BrewLabelStatus;
 extern lv_obj_t * ui_BrewLabelTime;

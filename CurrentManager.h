@@ -16,16 +16,22 @@ private:
     unsigned long pumpStopTime;
     bool pumpIsActuallyRunning; // Clean, filtered state
 
+    float lastStrength = 0.0;  // most recent reading from isPumpOn(), for live display/debug
+
 public:
     CurrentManager(int pinNumber);
     void init();
-    
+
     // Auto-discovers the "Silence" value
     void calibrate();
     float readStrength();
 
     // Returns TRUE if pump is ON
     bool isPumpOn();
+
+    // Live debug accessors- last sampled current strength and the active trip threshold
+    float getLastStrength() const { return lastStrength; }
+    float getThreshold()    const { return dynamicThreshold; }
 };
 
 #endif
