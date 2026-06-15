@@ -3,6 +3,7 @@
 #include <sys/_types.h>
 #include "SensorManager.h"
 #include <SPI.h>
+#include <math.h>
 
 // VBM Domobar Junior is an E61 machine, so after the boiler reaches its target temp, the brass needs to heat up the grouphead (takes 11 - 15 minutes usually)
 // targetGroupheadTemp is computed dynamically from _ghTargetRef (+14 for asymptote offset); default 90°C
@@ -77,8 +78,28 @@ void SensorManager::update() {
                 // float calibratedTemp = temp - 0.25; // Account for cable length + plugs resistance.
                 // float calibratedTemp = temp;
 
-                Serial.print("Stable Temp: "); Serial.println(temp);
-                currentTemp = temp;
+                // Plausibility + outlier guard: an intermittent RTD lead can return
+                // absurd values (160/250/600C) that don't trip a fault bit. The boiler
+                // physically lives in a sane band and can't jump tens of degrees in one
+                // 100ms sample- reject anything outside that.
+                const float TEMP_MIN = 0.0f, TEMP_MAX = 160.0f;
+                const float MAX_JUMP = 25.0f;
+                const int   MAX_CONSEC_REJECT = 10;  // escape hatch so a genuine sustained change still gets through
+
+                bool inBand    = (temp >= TEMP_MIN && temp <= TEMP_MAX);
+                bool smallJump = (!_tempSeeded) || (fabsf(temp - currentTemp) <= MAX_JUMP);
+
+                // Never accept an out-of-band value; accept in-band values that are either a
+                // small step, the first reading, or have persisted past the reject limit.
+                if (inBand && (smallJump || _rejectCount >= MAX_CONSEC_REJECT)) {
+                    currentTemp = temp;
+                    _tempSeeded = true;
+                    _rejectCount = 0;
+                    Serial.print("Stable Temp: "); Serial.println(temp);
+                } else {
+                    if (_rejectCount < MAX_CONSEC_REJECT) _rejectCount++;
+                    Serial.print("Rejected temp spike: "); Serial.println(temp);
+                }
 
                 thermo->enableBias(false);
                 isMeasuring = false;

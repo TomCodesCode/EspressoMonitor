@@ -29,6 +29,8 @@ private:
     bool isMeasuring;
     unsigned long measureStartTime;
     float _initialGroupheadTemp = 40.0f; // assumed GH temp when boiler first reaches target
+    bool  _tempSeeded  = false; // accept the first valid reading directly (seeds currentTemp)
+    int   _rejectCount = 0;     // consecutive outlier rejections; escape hatch for genuine sustained change
 
 public:
     SensorManager(SPIClass* sharedSPI);
