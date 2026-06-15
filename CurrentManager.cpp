@@ -89,7 +89,7 @@ void CurrentManager::calibrate() {
         delay(10);
     }
 
-    dynamicThreshold = maxNoise + 20.0;
+    dynamicThreshold = maxNoise + 30.0;
     
     Serial.print("Zero Point: "); Serial.println(zeroPoint);
     Serial.print("Noise Floor: "); Serial.println(maxNoise);
