@@ -471,7 +471,8 @@ void loop() {
                 }
             } else {
                 display.updateBrewData(seconds, tenths, sharedBoilerTemp.load());
-                display.updateBrewSCT(pumpSensor.getLastStrength(), pumpSensor.getThreshold());
+                display.updateBrewSCT(pumpSensor.getLastStrength(), pumpSensor.getThreshold(),
+                                      pumpSensor.getMidpoint() - pumpSensor.getZeroPoint());
                 if (!sharedPumpRunning) {
                     timer.stop();
                     stateChangeTime = currentTime;

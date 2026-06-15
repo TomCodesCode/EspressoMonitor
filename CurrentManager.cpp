@@ -56,9 +56,10 @@ void CurrentManager::init() {
     } else {
         Serial.println("WARNING: Circuit unstable! Loading historical calibration...");
         preferences.begin("espresso", true); 
-        zeroPoint = preferences.getInt("zero", 1950); 
-        dynamicThreshold = preferences.getFloat("thresh", 16.0); 
+        zeroPoint = preferences.getInt("zero", 1950);
+        dynamicThreshold = preferences.getFloat("thresh", 16.0);
         preferences.end();
+        dcOffset = zeroPoint;  // seed the dynamic offset from the stored calibration
 
         Serial.print("Loaded Zero Point: "); Serial.println(zeroPoint);
         Serial.print("Loaded Threshold: "); Serial.println(dynamicThreshold);
@@ -78,7 +79,8 @@ void CurrentManager::calibrate() {
         delay(1);
     }
     if (samples > 0) zeroPoint = total / samples;
-    
+    dcOffset = zeroPoint;  // seed the dynamic offset from the fresh calibration
+
     float maxNoise = 0.0;
     start = millis();
     while (millis() - start < 1000) {
@@ -98,22 +100,40 @@ void CurrentManager::calibrate() {
 }
 
 float CurrentManager::readStrength() {
-    long sumSquared = 0;
-    int samples = 0;
+    long  sum = 0;          // for the window mean (live DC midpoint)
+    long  sumSquared = 0;
+    int   samples = 0;
+    int   rawMin = 4095, rawMax = 0;
     unsigned long startSample = millis();
 
     while (millis() - startSample < 30) {
         int raw = analogRead(pin);
-        long shifted = raw - zeroPoint; 
+        long shifted = raw - (long)dcOffset;   // subtract the dynamically-tracked midpoint, not a frozen value
+        sum += raw;
         sumSquared += (shifted * shifted);
+        if (raw < rawMin) rawMin = raw;
+        if (raw > rawMax) rawMax = raw;
         samples++;
 
         delay(1);
     }
 
+    if (samples == 0) return 0.0;
+
+    float windowMean = (float)sum / samples;
+    // AC current averages to the midpoint, so the window mean tracks DC drift WITHOUT being
+    // pulled up by a real brew. Update the offset slowly so rail/temperature drift can't
+    // inflate the RMS into a phantom current.
+    dcOffset += (windowMean - dcOffset) * 0.10f;
+
+    // expose for diagnostics
+    lastMidpoint = windowMean;
+    lastRawMin   = rawMin;
+    lastRawMax   = rawMax;
+
     float meanSquare = (float)sumSquared / samples;
     float rms = sqrt(meanSquare);
-    return rms * 0.50; 
+    return rms * 0.50;
 }
 
 bool CurrentManager::isPumpOn() {
@@ -122,8 +142,11 @@ bool CurrentManager::isPumpOn() {
         lastCheck = millis();
         float strength = readStrength();
         lastStrength = strength;  // expose for live display
-        // debug print. ignore.
-        // Serial.printf("SCT: %.1f (thresh=%.1f)\n", strength, dynamicThreshold);
+        // TEMP false-brew diagnostic: strength vs threshold, plus the live midpoint drift
+        // (large drift => DC bias drift; mid steady but wide raw spread => real AC/EMI pickup)
+        Serial.printf("SCT: %.1f (thresh=%.1f) mid=%.0f drift=%+.0f raw[%d..%d]\n",
+                      strength, dynamicThreshold, lastMidpoint,
+                      lastMidpoint - zeroPoint, lastRawMin, lastRawMax);
 
         bool newState = lastPumpState;
         if (lastPumpState) {

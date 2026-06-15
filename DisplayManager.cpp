@@ -436,9 +436,10 @@ void DisplayManager::updateBrewData(const char* seconds, const char* tenths, flo
     }
 }
 
-void DisplayManager::updateBrewSCT(float strength, float threshold) {
-    char sctStr[24];
-    snprintf(sctStr, sizeof(sctStr), "%.1f / %.1f", strength, threshold);
+void DisplayManager::updateBrewSCT(float strength, float threshold, float drift) {
+    char sctStr[32];
+    // strength / threshold, plus DC-midpoint drift (d) for the false-brew hunt
+    snprintf(sctStr, sizeof(sctStr), "%.0f/%.0f d%+.0f", strength, threshold, drift);
     lv_label_set_text(ui_BrewLabelSCTCurrent, sctStr);
 }
 

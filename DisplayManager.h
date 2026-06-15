@@ -104,7 +104,7 @@ public:
     void updateWarmupData(float boilerTemp, float estGroupheadTemp, bool boilerReady);
     void updateReadyData(float boilerTemp, float estGroupheadTemp, const char * minutes, const char * seconds);
     void updateBrewData(const char* seconds, const char* tenths, float temp);
-    void updateBrewSCT(float strength, float threshold);  // live SCT current readout on the brew screen
+    void updateBrewSCT(float strength, float threshold, float drift);  // live SCT readout on the brew screen
     void updateDoneData(const char* seconds, const char* tenths);
     void showDoneUploading(bool show);
     int  getDoneRating();
