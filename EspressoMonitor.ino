@@ -1,3 +1,10 @@
+/*
+This project is made by www.github.com/TomCodesCode.
+You are free to treat it as an open source and experiment with it if you want.
+Please leave this credit when using and cloning the repo.
+Happy brewing!
+*/
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -25,7 +32,7 @@
 #define BUZZER_PIN 4    // Pin for the passive buzzer. used to transmit the sounds.
 // (use ~117. at the moment- the values change for testing)
 // Target temps are runtime-adjustable via Settings dropdowns, persisted in NVS.
-// Boiler range 115–125, GH range 85–93 (matching dropdown options in SquareLine UI).
+// Boiler range 115-125, GH range 85–93 (matching dropdown options in SquareLine UI).
 
 // SYSTEM
 Preferences sysPrefs;
@@ -47,7 +54,7 @@ unsigned long stateChangeTime = 0; // To track how long we've been in a state
 // If waiting for too long, should check if temp hasn't dropped (i.e.- maybe a smart-home switch turned off by timer)
 unsigned long peripheralsStatusCheckTime = 0;
 unsigned long readyTime = 0;
-// Written by Core 1 (loop), read by Core 0 (worker) for the GH estimate — atomic
+// Written by Core 1 (loop), read by Core 0 (worker) for the GH estimate - atomic
 // to make the cross-core access explicit. (Aligned 32-bit access is atomic on
 // Xtensa anyway, but this documents intent and adds proper memory ordering.)
 std::atomic<unsigned long> heatSoakStartTime{0};
@@ -100,8 +107,8 @@ void setup() {
     // --------------confirm 32-bit atomics are lock-free on this chip (informational)------------
     // is_always_lock_free is a compile-time constant, so it avoids the runtime
     // __atomic_is_lock_free symbol that the Xtensa runtime doesn't provide.
-    Serial.print("Atomic float lock-free: ");
-    Serial.println(std::atomic<float>::is_always_lock_free ? "yes" : "no (spinlock)");
+    // Serial.print("Atomic float lock-free: ");
+    // Serial.println(std::atomic<float>::is_always_lock_free ? "yes" : "no (spinlock)");
 
     // create the shared-bus mutex BEFORE the worker task starts.
     spiMutex = xSemaphoreCreateMutex();
