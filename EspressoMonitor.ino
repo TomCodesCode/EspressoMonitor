@@ -1,4 +1,5 @@
 /*
+Required Notice: Copyright 2026 TomCodesCode ([https://github.com/tomcodescode/espressomonitor](https://github.com/tomcodescode/espressomonitor))
 This project is made by www.github.com/TomCodesCode.
 You are free to treat it as an open source and experiment with it if you want.
 Please leave this credit when using and cloning the repo.

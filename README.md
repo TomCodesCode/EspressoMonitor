@@ -1,5 +1,7 @@
 # ☕ Espresso Monitor (v1)
 
+Required Notice: Copyright 2026 TomCodesCode ([https://github.com/tomcodescode/espressomonitor](https://github.com/tomcodescode/espressomonitor))
+
 ![EspressoMonitor](https://img.shields.io/badge/Platform-ESP32-blue) ![C++](https://img.shields.io/badge/Language-C%2B%2B-00599C) ![RTOS](https://img.shields.io/badge/Architecture-FreeRTOS-FF0000) ![LVGL](https://img.shields.io/badge/UI-LVGL_v9-green)
 
 ![Brew screen](images/brew%20(1).png)
