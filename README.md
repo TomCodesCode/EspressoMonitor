@@ -50,6 +50,9 @@ Thus, Espresso Monitor was born.
 * 🔊 **Passive Buzzer:** For the audio cues.
 * 🔀 **Wago splitters (Optional but recommended):** Less of a mess in your box and easy to use.
 * 📏 **Extension wires for the PT100 (Optional):** Only use insulated cables! The PT100 is super sensitive. I used spare car backup camera wires.
+
+### Architecture
+
 ```mermaid
 flowchart TB
     %% Styling Definitions
