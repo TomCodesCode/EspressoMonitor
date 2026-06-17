@@ -234,13 +234,36 @@ I added a button to the dashboard to download the CSV log. I used `file.readStri
 
 ## 📺 What You See
 
-![Warmup screen (boiler heating up first)](images/warmup_boiler%20(1).png) \
-![Warmup screen (grouphead started heating up)](images/warmup_heatsoak1%20(1).png) \
-![Warmup screen (grouphead almost at temp)](images/warmup_heatsoak2%20(1).png) \
-![Ready screen](images/ready%20(1).png) \
-![Settings screen](images/settings%20(1).png) \
-![Brew screen](images/brew%20(1).png) \
-![Done screen](images/done%20(1).png) \
+### Warmup screen (boiler heating up first)
+
+![Warmup screen (boiler heating up first)](images/warmup_boiler%20(1).png)
+
+### Warmup screen (grouphead started heating up)
+
+![Warmup screen (grouphead started heating up)](images/warmup_heatsoak1%20(1).png)
+
+### Warmup screen (grouphead almost at temp)
+
+![Warmup screen (grouphead almost at temp)](images/warmup_heatsoak2%20(1).png)
+
+### Ready screen
+
+![Ready screen](images/ready%20(1).png)
+
+### Settings screen
+
+![Settings screen](images/settings%20(1).png)
+
+### Brew screen
+
+![Brew screen](images/brew%20(1).png)
+
+### Done screen
+
+![Done screen](images/done%20(1).png)
+
+### server page
+
 ![server page](images/server_page%20(1).png) 
 
 ---
