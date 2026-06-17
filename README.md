@@ -284,13 +284,14 @@ I added a button to the dashboard to download the CSV log. I used `file.readStri
 * Adding a Bluetooth scale to stop the brewing automatically at a desired shot weight (using a relay).
 * ~~Adding a mini-game to play on the touch screen while waiting for the heat soak.~~ *(Killed to protect RTOS stability. A good engineer knows when to say no).*
 
-***
-
 ---
 
 ## LICENCE
 * Software: PolyForm Noncommercial License 1.0.0 \
+<!--
 * Hardware/3D Models: CC BY-NC-SA 4.0
+-->
+---
 
 > ☕ *Built with C++, FreeRTOS, and far too much caffeine.* \
 > *DISCLAIMER: AI was used to polish the photos (reflections and dirt), general consult and some code generation and refactoring.*
