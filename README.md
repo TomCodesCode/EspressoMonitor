@@ -4,8 +4,6 @@
 
 ![Brew screen](images/brew%20(1).png)
 
-***Add demo images***
-
 ***coming soon: demo video (YouTube)***
 
 ## 🗂️ Table of Contents
@@ -134,7 +132,7 @@ flowchart TB
 
 So... There I am, sitting there in front of an empty IDE project, and a desk full of electronic parts I ordered. Where do I start?
 
-> 📝 *Side note: I originally started with a simple non-touch I2C 0.98-inch display and had no plans for a server yet. The tiny screen was cute, but it was holding me back. I wanted live rolling charts. I wanted touch controls. I wanted data. So, I upgraded to the 2.4" TFT and dove headfirst into the abyss of UI design and dual-core microcontrollers.*
+> 📝 *Side note: I originally started with a simple non-touch I2C 0.96-inch display and had no plans for a server yet. The tiny screen was cute, but it was holding me back. I wanted live rolling charts. I wanted touch controls. I wanted data. So, I upgraded to the 2.8" TFT and dove headfirst into the abyss of UI design and dual-core microcontrollers.*
 
 Here is a chronological list of the walls I hit at 100mph, and how I engineered my way through them.
 
@@ -147,7 +145,7 @@ I could measure the boiler, but how do you measure the temperature of a 4kg chro
 
 > 💡 **Pro-tip:** *If you rapidly click a "+" button 15 times to change a calibration setting, and your code writes that to NVS flash memory on every click, you will fry your flash chip's write-cycles in a month. I tied the NVS flash command to the RTOS state machine, so it only physically burns the new calibration to memory exactly once when you exit the Settings screen.*
 
-> 📝 *Side note: If your machine is quite modern, and the boiler is right over the shower-head, it is probably ready to brew pretty much the moment the boiler is ready (but it's usually prefered to heat soak the portafilter too anyway).*
+> 📝 *Side note: If your machine is quite modern, and the boiler is right over the shower-head, it is probably ready to brew pretty much the moment the boiler is ready (but it's usually preferred to heat soak the portafilter too anyway).*
 
 #### 💥 2. Faulty MAX31865 (Am I going insane? Maybe)
 The cheap MAX31865 breakout board I grabbed off AliExpress seemed to be working great at first. I got a 3-wire PT100 sensor, soldered the pads "by the book," and called it a day. But as I started diving into FreeRTOS and splitting the sensor loops across two cores, boot stability went down the drain. The board began throwing persistent hardware faults, which actually turned out to be a massive blessing in disguise.
@@ -270,7 +268,7 @@ I added a button to the dashboard to download the CSV log. I used `file.readStri
 
 ## 🎁 Bonus *Good to Know* Features
 
-* Server charts are interactive: pross any spot on the chart for an accurate data at that specific point.
+* Server charts are interactive: press any spot on the chart for an accurate data at that specific point.
 * Choose a melody you want to play when the machine is ready: default is mute. But you can choose *Helldivers* or *Doom*.
 * Rate your shot when the brew is done; this feature will be utilized further in the future using an LLM API.
 * *Helldivers* themed UI (a Helldiver holding a cup in Done screen, a coffee beans field in a *Helldivers* world, etc.).
