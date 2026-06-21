@@ -33,7 +33,7 @@ Happy brewing!
 #define BUZZER_PIN 4    // Pin for the passive buzzer. used to transmit the sounds.
 // (use ~117. at the moment- the values change for testing)
 // Target temps are runtime-adjustable via Settings dropdowns, persisted in NVS.
-// Boiler range 115-125, GH range 85–93 (matching dropdown options in SquareLine UI).
+// Boiler range 115-125, GH range 85-93 (matching dropdown options in SquareLine UI).
 
 // SYSTEM
 Preferences sysPrefs;
@@ -310,15 +310,34 @@ void loop() {
     unsigned long currentTime = millis();
     static SystemState lastLoopState = WARMUP;
     static float       pendingTau    = -1.0f;
+    static bool        settingsFreshEntry = false; // true on the first SETTINGS frame after entering
+    static bool        nvsPending         = false; // a settings change is waiting to be written to NVS
 
-    // Flush tau to NVS exactly once when leaving SETTINGS
-    if (lastLoopState == SETTINGS && currentState != SETTINGS && pendingTau > 0.0f) {
-        sysPrefs.begin("system", false);
-        sysPrefs.putFloat("tau", pendingTau);
-        sysPrefs.end();
-        Serial.printf("tau saved to NVS on settings exit: %.1f s\n", pendingTau);
-        pendingTau = -1.0f;
+    // Flush settings to NVS once when leaving SETTINGS. The in-screen save is
+    // debounced by ~1 s; tapping Exit sooner would otherwise drop the write
+    // (the SETTINGS case stops running the instant currentState changes), so
+    // the live change would be lost on the next boot. Flush here to be safe.
+    if (lastLoopState == SETTINGS && currentState != SETTINGS) {
+        if (pendingTau > 0.0f) {
+            sysPrefs.begin("system", false);
+            sysPrefs.putFloat("tau", pendingTau);
+            sysPrefs.end();
+            Serial.printf("tau saved to NVS on settings exit: %.1f s\n", pendingTau);
+            pendingTau = -1.0f;
+        }
+        if (nvsPending) {
+            nvsPending = false;
+            sysPrefs.begin("system", false);
+            sysPrefs.putInt("music",        sharedMusicSelect.load());
+            sysPrefs.putInt("boilerTarget", sharedBoilerTarget.load());
+            sysPrefs.putInt("ghTarget",     sharedGHTarget.load());
+            sysPrefs.end();
+            Serial.println("Settings saved to NVS on settings exit");
+        }
     }
+    // Detect entry into SETTINGS so the case below can snapshot the current
+    // values and avoid treating untouched controls as user changes.
+    if (currentState == SETTINGS && lastLoopState != SETTINGS) settingsFreshEntry = true;
     lastLoopState = currentState;
 
     // check the peripherals' status every 10 seconds to update the display icons.
@@ -371,7 +390,7 @@ void loop() {
                     lastDrawnBoiler = boilerNow;
                     lastDrawnGH     = ghNow;
                 }
-                if (sharedBoilerTemp.load() > sharedBoilerTarget.load() && !isBoilerReady) {
+                if (sharedBoilerTemp.load() >= sharedBoilerTarget.load() && !isBoilerReady) {
                     isBoilerReady = true;
                     calibWindow   = true;
                     heatSoakStartTime = currentTime;
@@ -507,12 +526,24 @@ void loop() {
             static int           lastSavedBoiler = -1;
             static int           lastSavedGH     = -1;
             static int           lastCalibTemp   = -1;
-            static bool          nvsPending      = false;
-            static unsigned long lastChangeTime  = 0;
+            static unsigned long lastChangeTime  = 0;  // nvsPending lives at loop scope so the exit flush can see it
             int curMusic  = sharedMusicSelect.load();
             int curBoiler = sharedBoilerTarget.load();
             int curGH     = sharedGHTarget.load();
             int curCalib  = sharedCalibTemp.load();
+
+            // On entry, snapshot the current values so an untouched control is never
+            // treated as a "change". Without this, the calibration spinbox's default
+            // value (!= the -1 sentinel) would recompute tau the instant you open
+            // settings, and any unrelated edit (e.g. music) would appear to "save"
+            // the calibration too. Now only a control you actually move takes effect.
+            if (settingsFreshEntry) {
+                settingsFreshEntry = false;
+                lastSavedMusic  = curMusic;
+                lastSavedBoiler = curBoiler;
+                lastSavedGH     = curGH;
+                lastCalibTemp   = curCalib;
+            }
             if (curMusic != lastSavedMusic || curBoiler != lastSavedBoiler || curGH != lastSavedGH) {
                 lastChangeTime = millis();
                 nvsPending = true;

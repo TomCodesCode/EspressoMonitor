@@ -77,8 +77,8 @@ void DisplayManager::init() {
     lv_obj_add_event_cb(ui_SettingsDropdownBoilerTemp,   settings_boiler_temp_cb, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_add_event_cb(ui_SettingsDropdownGHTemp,       settings_gh_temp_cb,     LV_EVENT_VALUE_CHANGED, this);
 
-    // Heatsoak calibration spinbox — range 40–70°C, integer display
-    lv_spinbox_set_range(ui_SettingsSpinboxHeatsoak, 41, 70);  // min 41: at 40 (==T_0) calibration's T_sel>T_0 guard fails
+    // Heatsoak calibration spinbox — range 41–95°C, integer display
+    lv_spinbox_set_range(ui_SettingsSpinboxHeatsoak, 41, 95);  // min 41: at 40 (==T_0) calibration's T_sel>T_0 guard fails; max 95 to allow late, more accurate calibration
     lv_spinbox_set_digit_format(ui_SettingsSpinboxHeatsoak, 2, 0);
     lv_spinbox_set_value(ui_SettingsSpinboxHeatsoak, 50);
     lv_obj_set_width(ui_SettingsSpinboxHeatsoak, 170);
