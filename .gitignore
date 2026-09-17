@@ -28,3 +28,8 @@ node_modules/
 
 # WiFi credentials
 secrets.h
+
+# PlatformIO build output / metadata (per-project)
+.pio/
+.pioenvs/
+.piolibdeps/

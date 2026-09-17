@@ -1,5 +1,5 @@
 #include "DisplayManager.h"
-#include "src/ui/ui.h"
+#include "ui/ui.h"
 
 // Dropdown index <-> temperature mapping: option N corresponds to base + N.
 // Defined once so the set (temp->index) and get (index->temp) directions can't

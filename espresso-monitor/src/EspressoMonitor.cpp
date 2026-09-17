@@ -27,6 +27,13 @@ Happy brewing!
 #include <time.h>
 #include "esp_task_wdt.h"
 
+// Forward declarations. Arduino .ino files get these auto-generated; a plain
+// .cpp does not, so declare the free functions used before their definitions.
+void coreZeroWorkerTask(void * parameter);
+void playReadySound();
+time_t getUnixTime();
+void sysBoots();
+
 // PIN DEFINITIONS
 #define CURRENT_PIN 34  // Pin for SCT sensor
 // #define BUTTON_PIN  15  // Pin for the button (InputManager)

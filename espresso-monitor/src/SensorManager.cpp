@@ -1,6 +1,3 @@
-#include "esp32-hal-spi.h"
-#include "esp32-hal.h"
-#include <sys/_types.h>
 #include "SensorManager.h"
 #include <SPI.h>
 #include <math.h>

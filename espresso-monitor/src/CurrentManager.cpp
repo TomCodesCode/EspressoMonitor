@@ -1,5 +1,3 @@
-#include "esp32-hal.h"
-#include "portmacro.h"
 #include "CurrentManager.h"
 #include <Preferences.h>
 
