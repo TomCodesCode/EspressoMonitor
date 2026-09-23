@@ -1,52 +1,51 @@
 // ============================================================================
-// Grinder control — ESP32-S3   (SKELETON)
+// Grinder control — ESP32-2424S012C (round GC9A01 C3 board)
 //
-// Role: receive weight/flow from the grinder scale over ESP-NOW, control the
-// grinder, and relay data onward to the espresso-monitor hub.
+// PHASE B: DISPLAY BRING-UP TEST (pure TFT_eSPI, no LVGL/touch yet).
+// Goal: confirm the panel driver, pins, and backlight are correct. If the round
+// screen shows a green ring + "GRINDER" + a blinking dot, the config is right.
 //
-// This is a stub that stands up ESP-NOW receive using the SHARED wire format
-// so the mesh is wired end-to-end; grinder-driving logic comes later.
+// Next (once this works):
+//   - Phase C: CST816 capacitive touch (I2C SDA=4 SCL=5 INT=0 RST=1)
+//   - Phase D: LVGL + SquareLine UI (240x240 round): target weight, live weight,
+//              start/stop, status
+//   - Phase E: ESP-NOW receive from the scale (shared/esp_now_protocol.h) +
+//              SSR relay (control on GPIO20) to auto-stop grind at target weight
 // ============================================================================
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <esp_now.h>
-#include "esp_now_protocol.h"   // shared struct — same bytes on every node
+#include <TFT_eSPI.h>
 
-// Called on every inbound ESP-NOW packet.
-void onEspNowRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
-  if (len != (int)ESPNOW_MSG_SIZE) return;                 // wrong size -> ignore
-  EspNowMessage msg;
-  memcpy(&msg, data, sizeof(msg));
-  if (msg.version != ESPNOW_PROTOCOL_VERSION) return;      // version mismatch -> ignore
-
-  if (msg.msgType == MSG_WEIGHT) {
-    Serial.printf("[node %u] %.2f g  (%.2f g/s)\n",
-                  msg.srcNode, msg.grams, msg.gramsPerSec);
-    // TODO: grinder control logic + relay to espresso-monitor hub.
-  }
-}
+TFT_eSPI tft = TFT_eSPI();
 
 void setup() {
   Serial.begin(115200);
   delay(300);
-  Serial.println("\n--- GRINDER CONTROL (S3) BOOTING ---");
+  Serial.println("\n--- GRINDER round display bring-up ---");
 
-  // ESP-NOW needs WiFi in STA mode, but not connected to an AP.
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
+  tft.init();
+  tft.setRotation(0);
+  tft.fillScreen(TFT_BLACK);
 
-  if (esp_now_init() != ESP_OK) {
-    Serial.println("FATAL: esp_now_init failed");
-    return;
-  }
-  esp_now_register_recv_cb(onEspNowRecv);
+  // Ring (fits the round panel) + centered text.
+  tft.fillCircle(120, 120, 119, TFT_DARKGREEN);
+  tft.fillCircle(120, 120, 108, TFT_BLACK);
+  tft.setTextDatum(MC_DATUM);
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.drawString("GRINDER", 120, 108, 4);
+  tft.drawString("display OK", 120, 138, 2);
 
-  Serial.print("My MAC: "); Serial.println(WiFi.macAddress());  // peers need this
-  Serial.println("--- Ready (listening for ESP-NOW) ---");
+  Serial.println("Drew test pattern. Green ring + text = pins/driver/backlight OK.");
 }
 
 void loop() {
-  // Event-driven via the recv callback; nothing to poll yet.
-  delay(10);
+  // Liveness: a small dot cycles colors so you can see the sketch is running.
+  static uint32_t t = 0;
+  static const uint16_t cols[] = { TFT_RED, TFT_GREEN, TFT_BLUE, TFT_YELLOW };
+  static uint8_t i = 0;
+  if (millis() - t > 500) {
+    t = millis();
+    tft.fillCircle(120, 176, 8, cols[i]);
+    i = (i + 1) & 3;
+  }
 }
