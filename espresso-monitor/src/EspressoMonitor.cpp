@@ -26,13 +26,14 @@ Happy brewing!
 #include "secrets.h"
 #include <time.h>
 #include "esp_task_wdt.h"
+#include "esp_system.h"   // esp_reset_reason()
 
 // Forward declarations. Arduino .ino files get these auto-generated; a plain
 // .cpp does not, so declare the free functions used before their definitions.
 void coreZeroWorkerTask(void * parameter);
 void playReadySound();
 time_t getUnixTime();
-void sysBoots();
+unsigned int sysBoots();
 
 // PIN DEFINITIONS
 #define CURRENT_PIN 34  // Pin for SCT sensor
@@ -105,12 +106,41 @@ float mockTempBoiler = 20.0;
 float mockTempGH = 0.0;
 unsigned long lastUpdateT = 0;
 
+// Human-readable reset cause, for boot diagnostics (see setup()).
+static const char* resetReasonStr(esp_reset_reason_t r) {
+    switch (r) {
+        case ESP_RST_POWERON:   return "POWERON";
+        case ESP_RST_EXT:       return "EXT";
+        case ESP_RST_SW:        return "SW";
+        case ESP_RST_PANIC:     return "PANIC(crash)";
+        case ESP_RST_INT_WDT:   return "INT_WDT";
+        case ESP_RST_TASK_WDT:  return "TASK_WDT";
+        case ESP_RST_WDT:       return "WDT";
+        case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
+        case ESP_RST_BROWNOUT:  return "BROWNOUT(power)";
+        case ESP_RST_SDIO:      return "SDIO";
+        default:                return "UNKNOWN";
+    }
+}
+
 void setup() {
     Serial.begin(115200);
+
+    // Silence any tone left running by a crash reboot — the LEDC/tone peripheral
+    // keeps driving the buzzer across a reset until firmware re-inits it, which is
+    // why a crashed boot leaves a note stuck on.
+    pinMode(BUZZER_PIN, OUTPUT);
+    noTone(BUZZER_PIN);
+    digitalWrite(BUZZER_PIN, LOW);
+
+    // Capture WHY we last reset (logged to SD once it's mounted, below).
+    esp_reset_reason_t bootReason = esp_reset_reason();
+
     delay(1000);
 
     Serial.println();
-    sysBoots(); // Number of boots
+    Serial.printf("Reset reason: %s\n", resetReasonStr(bootReason));
+    unsigned int bootNum = sysBoots(); // Number of boots
 
     // --------------confirm 32-bit atomics are lock-free on this chip (informational)------------
     // is_always_lock_free is a compile-time constant, so it avoids the runtime
@@ -162,6 +192,16 @@ void setup() {
     sensor.init(); // 3 wire mode
     pumpSensor.init(); // IMPORTANT: Ensure pump is OFF when you turn the machine on! (good practice regardless)
     sdCard.init();
+
+    // Boot diagnostics: log the reset cause to SD so an intermittent reboot is
+    // captured even on the wall adapter with no serial attached. The suspected
+    // crash at WARMUP->READY (buzzer melody) shows up as the reason on the NEXT
+    // boot: BROWNOUT(power) = supply sag; PANIC(crash) = a real code fault.
+    {
+        char line[48];
+        snprintf(line, sizeof(line), "%u,%s", bootNum, resetReasonStr(bootReason));
+        sdCard.appendLog("/boot_reasons.csv", line);
+    }
 
     // purely for SD testing. no need in actual runs. un-comment if you suspect anything
     // sdCard.testReadWrite();
@@ -665,11 +705,12 @@ time_t getUnixTime() {
     return getLocalTime(&t, 0) ? mktime(&t) : 0;
 }
 
-void sysBoots(){
+unsigned int sysBoots(){
     sysPrefs.begin("system", false);
     unsigned int boots = sysPrefs.getUInt("boots", 0) + 1;
     sysPrefs.putUInt("boots", boots);
     sysPrefs.end();
     Serial.print("Total Machine Boots: ");
     Serial.println(boots);
+    return boots;
 }
