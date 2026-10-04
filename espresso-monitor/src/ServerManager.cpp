@@ -45,6 +45,11 @@ th{color:#888;font-weight:600}
 <thead><tr><th>#</th><th>Time</th><th>Duration (s)</th><th>Pts</th><th>Rating</th><th></th></tr></thead>
 <tbody id="log"><tr><td colspan="5">Loading...</td></tr></tbody>
 </table>
+<h2>Boot / Crash Log <button onclick="loadBoot()">Refresh</button></h2>
+<table>
+<thead><tr><th>Boot #</th><th>Reset reason</th></tr></thead>
+<tbody id="blog"><tr><td colspan="2">Loading...</td></tr></tbody>
+</table>
 <div id="modal">
   <div id="mbox">
     <button id="mclose" onclick="closeChart()">&#10005;</button>
@@ -139,8 +144,22 @@ function chartClick(e){
   showPoint(Math.max(0,Math.min(n-1,i)));
 }
 function closeChart(){document.getElementById('modal').className='';}
+function loadBoot(){
+  fetch('/api/boot').then(function(r){return r.text();}).then(function(t){
+    var rows=t.trim().split('\n').filter(function(l){return l.length>0;});
+    var tb=document.getElementById('blog');
+    if(!rows.length){tb.innerHTML='<tr><td colspan="2">No boots logged yet.</td></tr>';return;}
+    rows.reverse();
+    tb.innerHTML=rows.map(function(r){
+      var p=r.split(',');
+      var reason=p.length>=2?p[1]:p[0];
+      var crash=/PANIC|WDT|BROWNOUT/.test(reason);
+      return '<tr><td>'+p[0]+'</td><td'+(crash?' style="color:#c00;font-weight:bold"':'')+'>'+reason+'</td></tr>';
+    }).join('');
+  }).catch(function(){});
+}
 document.getElementById('mchart').addEventListener('click',chartClick);
-poll();loadLog();setInterval(poll,5000);
+poll();loadLog();loadBoot();setInterval(poll,5000);
 </script>
 </body>
 </html>
@@ -231,6 +250,7 @@ void ServerManager::tryStartServer() {
         _server.on("/api/temps", [this]() { handleApiTemps(); });
         _server.on("/api/log",   [this]() { handleApiLog(); });
         _server.on("/api/brew",  [this]() { handleApiBrewTemps(); });
+        _server.on("/api/boot",  [this]() { handleApiBootReasons(); });
         _routesRegistered = true;
     }
 
@@ -296,6 +316,20 @@ void ServerManager::handleApiBrewTemps() {
     if (!_sd->streamFileChunked(path, _server)) {
         _server.sendHeader("Connection", "close");
         _server.send(404, "text/plain", "brew not found");
+    }
+    _server.client().setTimeout(2);
+}
+
+void ServerManager::handleApiBootReasons() {
+    if (!_sd || !_sd->isInitialized()) {
+        _server.sendHeader("Connection", "close");
+        _server.send(503, "text/plain", "SD not ready");
+        _server.client().setTimeout(2);
+        return;
+    }
+    if (!_sd->streamFileChunked("/boot_reasons.csv", _server)) {
+        _server.sendHeader("Connection", "close");
+        _server.send(200, "text/plain", "");   // empty file = no boots logged yet
     }
     _server.client().setTimeout(2);
 }

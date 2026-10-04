@@ -122,6 +122,7 @@ void SDManager::clearLogs() {
     if (spiMutex) xSemaphoreTake(spiMutex, portMAX_DELAY);
     SD.remove("/brew_log.csv");
     SD.remove("/brew_log.txt");
+    SD.remove("/boot_reasons.csv");
     // Delete individual brew temp files (brew_*.csv)
     File root = SD.open("/");
     File entry = root.openNextFile();

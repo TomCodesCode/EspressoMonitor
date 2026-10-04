@@ -31,5 +31,6 @@ private:
     void handleApiTemps();
     void handleApiLog();
     void handleApiBrewTemps();
+    void handleApiBootReasons();
     const char* stateToString(SystemState s);
 };
